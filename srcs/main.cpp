@@ -1,3 +1,4 @@
+#include "Server.hpp"
 #include "ConfigParser.hpp"
 #include <iostream>
 #include <cstdlib>
@@ -18,20 +19,9 @@ int main(int ac, char **av)
         return 1;
     }
 
-    Config config = parser.get("127.0.0.1:8081");
+    Server server = Server();
 
-    if (config.getServerNames().empty())
-    {
-        std::cerr << "Error: no server names" << std::endl;
-        return 1;
-    }
-
-    std::vector<std::string> server_names = config.getServerNames();
-    std::cout << "Server names: ";
-    for (size_t i = 0; i < server_names.size(); i++)
-        std::cout << server_names[i] << " ";
-    
-    std::cout << std::endl;
+    server.start(parser);
 
     return 0;
 }

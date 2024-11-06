@@ -25,6 +25,8 @@ public:
     Config get(const std::string &key) const;
     SRet<std::string> parse(const std::string &filename);
 
+    std::vector<unsigned int> getAllPorts() const;
+
 private:
     SRet<std::string> readConfigFile(const std::string &filename);
     SRet<std::string> removeComments(const std::string &content);

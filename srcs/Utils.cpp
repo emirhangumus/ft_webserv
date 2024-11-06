@@ -36,9 +36,9 @@ std::vector<std::string> split(const std::string &str, char delim) {
     return tokens;
 }
 
-int stringtoi(const std::string &str)
+unsigned int stringtoui(const std::string &str)
 {
-    int result = 0;
+    unsigned int result = 0;
     int sign = 1;
     size_t i = 0;
 
@@ -55,3 +55,10 @@ int stringtoi(const std::string &str)
 
     return result * sign;
 }
+
+// void bzero(void *s, size_t n)
+// {
+//     char *ptr = (char *)s;
+//     while (n--)
+//         *ptr++ = 0;
+// }

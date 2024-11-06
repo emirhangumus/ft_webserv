@@ -39,8 +39,6 @@ Config ConfigParser::get(const std::string &key) const
     for (std::map<std::string, Config>::const_iterator it = m_config.begin(); it != m_config.end(); it++)
         std::cout << it->first << std::endl;
 
-
-
     // check if key exists
     std::map<std::string, Config>::const_iterator it = m_config.find(key);
     if (it == m_config.end())
@@ -245,4 +243,12 @@ SRet<std::map<std::string, Config> > ConfigParser::parseConfigFile(const std::st
     }
 
     return SRet<std::map<std::string, Config> >(EXIT_SUCCESS, config);
+}
+
+std::vector<unsigned int> ConfigParser::getAllPorts() const
+{
+    std::vector<unsigned int> ports;
+    for (std::map<std::string, Config>::const_iterator it = m_config.begin(); it != m_config.end(); it++)
+        ports.push_back(it->second.getListen().second);
+    return ports;
 }

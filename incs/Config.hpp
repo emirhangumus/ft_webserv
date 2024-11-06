@@ -13,13 +13,13 @@ public:
     ~Config();
 
     void fillConfig(std::string listen, std::vector<std::string> server_names, Location main_location, std::map<std::string, Location> locations);
-    std::pair<std::string, int> getListen() const { return listen; }
+    std::pair<std::string, unsigned int> getListen() const { return listen; }
     std::vector<std::string> getServerNames() const { return server_names; }
     Location getMainLocation() const { return main_location; }
     std::map<std::string, Location> getLocations() const { return locations; }
 
 private:
-    std::pair<std::string, int> listen;
+    std::pair<std::string, unsigned int> listen;
     std::vector<std::string> server_names;
     Location main_location;
     std::map<std::string, Location> locations;

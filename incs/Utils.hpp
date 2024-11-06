@@ -20,6 +20,7 @@ public:
 
 std::string trim(const std::string &str);
 std::vector<std::string> split(const std::string &str, char delim);
-int stringtoi(const std::string &str);
+unsigned int stringtoui(const std::string &str);
+// void bzero(void *s, size_t n);
 
 #endif

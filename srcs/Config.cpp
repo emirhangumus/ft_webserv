@@ -14,7 +14,7 @@ void Config::fillConfig(std::string listen, std::vector<std::string> server_name
     this->locations = locations;
     std::string delimiter = ":";
     size_t pos = listen.find(delimiter);
-    this->listen = std::make_pair(listen.substr(0, pos), stringtoi(listen.substr(pos + 1)));
+    this->listen = std::make_pair(listen.substr(0, pos), stringtoui(listen.substr(pos + 1)));
 }
 
 Config::~Config()
