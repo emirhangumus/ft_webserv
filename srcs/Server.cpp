@@ -57,6 +57,7 @@ void Server::start(ConfigParser config)
 		setsockopt(*fd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int));
 		setNonBlock(*fd);
 	}
+	// set all fds to this->fds
 	for (fd = fds.begin(), so = this->allSockets.begin(); fd != fds.end(); fd++, so++) //bind the fds to the sockets and put them in listening mode
 	{
 		if (bind(*fd, (struct sockaddr *)&(*so), sizeof(struct sockaddr_in)))
@@ -226,3 +227,135 @@ bool	Server::writeToClient(std::vector<pollfd> &pollfds, int i, ConfigParser con
 	pollfds[i].events = POLLIN;
 	return true;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// bool Server::acceptNewConnectionsIfAvailable(std::vector<pollfd> &pollfds, int i, ConfigParser config) {
+// 	struct pollfd tmp;
+// 	socklen_t socketSize = sizeof(this->allSockets[i]);
+
+// 	int _fd;
+// 	_fd = accept(pollfds[i].fd, (struct sockaddr *)&this->allSockets[i], &socketSize);
+// 	if (_fd == -1) return false;
+// 	std::cout << "Accepting new connection" << i << std::endl;
+// 	tmp.fd = _fd; // set the newly obtained file descriptor to the pollfd. Important to do this before the fcntl call!
+// 	int val = fcntl(_fd, F_SETFL, fcntl(_fd, F_GETFL, 0) | O_NONBLOCK);
+// 	if (val == -1) { // fcntl failed, we now need to close the socket
+// 		close(_fd);
+// 		return false;
+// 	};
+
+// 	// set the pollfd to listen for POLLIN events (read events)
+// 	tmp.events = POLLIN;
+// 	tmp.revents = 0;
+// 	pollfds.push_back(tmp); //add the new fd/socket to the set, considered as "client"
+
+// 	std::cout << "Accepted new connection" << std::endl;
+// 	int BUFFER_SIZE_READ = 1024;
+// 	// read the from the client
+// 	char buffer[1024 * 1024];
+// 	std::fill(buffer, buffer + BUFFER_SIZE_READ, 0);
+// 	std::string request;
+
+// 	while (1) {
+// 		int bytes = recv(_fd, buffer, BUFFER_SIZE_READ, 0);
+// 		if (bytes == -1) {
+// 			std::cout << "Error reading from client: " << strerror(errno) << std::endl;
+// 			break;
+// 		}
+// 		if (bytes == 0) {
+// 			std::cout << "Client closed connection" << std::endl;
+// 			break;
+// 		}
+// 		std::cout << "Read " << bytes << " bytes from client" << std::endl;
+// 		std::cout << "Data: " << buffer << std::endl;
+
+// 		// check if the buffer is empty
+// 		if (bytes == 0) {
+// 			break;
+// 		}
+
+// 		request.append(buffer, bytes);
+// 		if (bytes < BUFFER_SIZE_READ) {
+// 			break;
+// 		}
+// 		std::fill(buffer, buffer + BUFFER_SIZE_READ, 0);
+// 	}
+
+// 	std::string response;
+// 	RequestParser rp = RequestParser(config);
+// 	SRet<bool> ret = rp.parseRequest(request);
+// 	if (ret.status == EXIT_FAILURE) {
+// 		std::cout << "Error parsing request: " << ret.err << std::endl;
+// 		response = ErrorResponse::getErrorResponse(400);
+// 	}
+// 	else {
+// 		std::cout << "Parsed request successfully" << std::endl;
+// 		SRet<std::string> realResponse = rp.prepareResponse();
+// 		if (realResponse.status == EXIT_FAILURE) {
+// 			response = realResponse.err;
+// 		}
+// 		else {
+// 			response = realResponse.data;
+// 		}
+// 		// response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 12\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS\r\nAccess-Control-Allow-Headers: *\r\n\r\nHello World!";
+// 	}
+
+
+// 	// write to the client
+// 	// std::string response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 12\r\n\r\nHello World!";
+
+// 	// create a redirect response
+// 	// std::string response = "HTTP/1.1 301 Moved Permanently\r\nLocation: https://www.google.com\r\n\r\n";
+
+// 	// create response with cors.
+// 	// - Access-Control-Allow-Origin
+// 	// - AMethodccess-Control-Allow-s
+// 	// - Access-Control-Allow-Headers
+
+// 	int bytesWritten = write(_fd, response.c_str(), response.size());
+// 	if (bytesWritten == -1) {
+// 		std::cout << "Error writing to client: " << strerror(errno) << std::endl;
+// 	}
+// 	else {
+// 		std::cout << "Wrote " << bytesWritten << " bytes to client" << std::endl;
+// 	}
+// 	// close the connection
+// 	close(_fd);
+// 	// remove the pollfd from the list
+// 	pollfds.pop_back();
+
+// 	return true;
+// }
+
+
+// std::cout << "Polling on socket " << i << std::endl;
+			// // accept new connections
+			// // print out amount of clients
+			// /**
+			//  * Listen to the listening sockets for new connections (ports)
+			//  */
+			// if (i < totalPortSize)
+			// {
+			// 	if ((*pollfds)[i].revents == POLLIN)
+			// 		if (!acceptNewConnectionsIfAvailable((*pollfds), i, config))
+			// 			continue;
+			// }
+			// /**
+			//  * Listen to established connections
+			//  */
+			// else //area of ClientSocket, sockets that are the result of a forwarded fd (accepted connection), and that we consider as client.
+			// {
+
+			// }
