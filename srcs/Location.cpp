@@ -1,6 +1,10 @@
 #include "Location.hpp"
 #include <iostream>
 
+#include <string>
+#include <vector>
+#include <iostream>
+
 Location::Location()
 {
     // std::cout << "Location Constructor called" << std::endl;
@@ -76,3 +80,24 @@ void Location::setTryFiles(const std::string &try_files)
 {
     this->try_files = try_files;
 }
+
+void Location::printLocation() const
+{
+    std::cout << "Location: " << this->path << std::endl;
+    std::cout << "Root: " << this->root << std::endl;
+    std::cout << "Index: " << this->index << std::endl;
+    std::cout << "Autoindex: " << this->autoindex << std::endl;
+    std::cout << "Client Max Body Size: " << this->client_max_body_size << std::endl;
+    std::cout << "Allow Methods: ";
+    for (std::vector<std::string>::const_iterator it = this->allow_methods.begin(); it != this->allow_methods.end(); ++it)
+    {
+        std::cout << *it << " ";
+    }
+    std::cout << std::endl;
+    std::cout << "Limit Except: " << this->limit_except << std::endl;
+    std::cout << "Cgi Path: " << this->cgi_path << std::endl;
+    std::cout << "Error Page: " << this->error_page << std::endl;
+    std::cout << "Return: " << this->return_ << std::endl;
+    std::cout << "Try Files: " << this->try_files << std::endl;
+}
+

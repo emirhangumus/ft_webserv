@@ -22,5 +22,7 @@ std::string trim(const std::string &str);
 std::vector<std::string> split(const std::string &str, char delim);
 unsigned int stringtoui(const std::string &str);
 // void bzero(void *s, size_t n);
+unsigned int countThis(std::string str, char c);
+std::string size_tToString(size_t value);
 
 #endif

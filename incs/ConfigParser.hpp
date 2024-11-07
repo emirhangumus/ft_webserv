@@ -26,12 +26,14 @@ public:
     SRet<std::string> parse(const std::string &filename);
 
     std::vector<unsigned int> getAllPorts() const;
+    Config getServerConfig(const std::string &host) const;
 
 private:
     SRet<std::string> readConfigFile(const std::string &filename);
     SRet<std::string> removeComments(const std::string &content);
     SRet<std::map<std::string, Config> > parseConfigFile(const std::string &content);
     std::map<std::string, Config> m_config;
+    Config defaultConfig;
     std::vector<std::string> VALID_DIRECTIVES;
 };
 

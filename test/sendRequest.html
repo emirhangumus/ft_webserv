@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HTTP Request Form</title>
+    <style>
+      /* Basic reset */
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        font-family: Arial, sans-serif;
+      }
+
+      body {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        background: #f0f2f5;
+        color: #333;
+      }
+
+      h1 {
+        text-align: center;
+        margin-bottom: 20px;
+        color: #333;
+        font-size: 1.8em;
+      }
+
+      form {
+        background: #fff;
+        padding: 20px 30px;
+        border-radius: 10px;
+        box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.1);
+        width: 100%;
+        max-width: 500px;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        animation: fadeIn 0.5s ease-in-out;
+      }
+
+      label {
+        font-weight: bold;
+        margin-bottom: 5px;
+        color: #555;
+      }
+
+      input[type="text"],
+      select,
+      textarea {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        font-size: 1em;
+        transition: border-color 0.3s ease;
+      }
+
+      input[type="text"]:focus,
+      select:focus,
+      textarea:focus {
+        outline: none;
+        border-color: #007bff;
+      }
+
+      textarea {
+        resize: vertical;
+        min-height: 80px;
+      }
+
+      button {
+        padding: 10px 20px;
+        background-color: #007bff;
+        color: #fff;
+        font-weight: bold;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+      }
+
+      button:hover {
+        background-color: #0056b3;
+      }
+
+      h2 {
+        margin-top: 20px;
+        font-size: 1.5em;
+        color: #333;
+      }
+
+      pre {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 5px;
+        border: 1px solid #ddd;
+        max-height: 300px;
+        overflow-y: auto;
+        font-size: 0.9em;
+        color: #333;
+        box-shadow: 0px 10px 20px rgba(0, 0, 0, 0.05);
+      }
+
+      /* Animation */
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(-10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      body {
+        font-family: Arial, sans-serif;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+      }
+
+      pre {
+        width: 100%;
+        max-width: 800px;
+        overflow-x: auto;
+        font-size: 0.9em;
+        text-align: left;
+        font-style: normal;
+        white-space: pre-wrap;
+        font-family: monospace;
+        margin-top: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>HTTP Request Form</h1>
+    <form id="requestForm">
+      <label for="url">URL:</label>
+      <input
+        type="text"
+        id="url"
+        name="url"
+        placeholder="http://localhost:8082"
+        value="http://localhost:8082"
+        required
+      />
+
+      <label for="method">Method:</label>
+      <select id="method" name="method">
+        <option value="GET">GET</option>
+        <option value="POST">POST</option>
+        <option value="PUT">PUT</option>
+        <option value="DELETE">DELETE</option>
+        <option value="PATCH">PATCH</option>
+      </select>
+
+      <label for="headers">Headers (one per line as key: value):</label>
+      <textarea
+        id="headers"
+        name="headers"
+        rows="5"
+        placeholder="test: a\nx-header-x-long: 123"
+      ></textarea>
+
+      <button type="submit">Send Request</button>
+    </form>
+
+    <h2>Response:</h2>
+    <pre id="responseOutput"></pre>
+
+    <script>
+      document
+        .getElementById("requestForm")
+        .addEventListener("submit", async function (event) {
+          event.preventDefault();
+
+          const url = document.getElementById("url").value;
+          const method = document.getElementById("method").value;
+          const headersInput = document.getElementById("headers").value;
+          const headers = {};
+
+          // Parse headers in "key: value" format
+          headersInput.split("\n").forEach((line) => {
+            const [key, value] = line.split(":").map((part) => part.trim());
+            if (key && value) {
+              headers[key] = value;
+            }
+          });
+
+          try {
+            const response = await fetch(url, { method, headers });
+            const text = await response.text();
+            document.getElementById("responseOutput").textContent = text;
+          } catch (error) {
+            document.getElementById(
+              "responseOutput"
+            ).textContent = `Request failed: ${error}`;
+          }
+        });
+    </script>
+  </body>
+</html>

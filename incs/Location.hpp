@@ -5,7 +5,8 @@
 #include <vector>
 #include "Utils.hpp"
 
-class Location {
+class Location
+{
 public:
     Location();
     ~Location();
@@ -22,6 +23,8 @@ public:
     void setReturn(const std::string &return_);
     void setTryFiles(const std::string &try_files);
 
+    void setPathDeepLevel(unsigned int path_deep_level) { _path_deep_level = path_deep_level; }
+
     std::string getPath() const { return path; }
     std::string getRoot() const { return root; }
     std::string getIndex() const { return index; }
@@ -33,6 +36,9 @@ public:
     std::string getErrorPage() const { return error_page; }
     std::string getReturn() const { return return_; }
     std::string getTryFiles() const { return try_files; }
+
+    void printLocation() const;
+
 private:
     std::string path;
     std::string root;
@@ -45,6 +51,8 @@ private:
     std::string limit_except;
     std::string cgi_path;
     std::string error_page;
+
+    unsigned int _path_deep_level;
 };
 
 #endif

@@ -1,4 +1,5 @@
 #include "Utils.hpp"
+#include <sstream>
 
 std::string trim(const std::string &str)
 {
@@ -62,3 +63,21 @@ unsigned int stringtoui(const std::string &str)
 //     while (n--)
 //         *ptr++ = 0;
 // }
+
+unsigned int countThis(std::string str, char c)
+{
+    unsigned int count = 0;
+    for (size_t i = 0; i < str.size(); i++)
+    {
+        if (str[i] == c)
+            count++;
+    }
+    return count;
+}
+
+std::string size_tToString(size_t value)
+{
+    std::ostringstream oss;
+    oss << value;
+    return oss.str();
+}

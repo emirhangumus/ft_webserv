@@ -15,6 +15,7 @@
 #include <cerrno>
 #include <cstring>
 #include "RequestParser.hpp"
+#include "ErrorResponse.hpp"
 
 Server::Server()
 {
@@ -22,6 +23,11 @@ Server::Server()
 
 Server::~Server()
 {
+}
+
+void setNonBlock(int fd) {
+    int flags = fcntl(fd, F_GETFL, 0);
+    fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 }
 
 void Server::start(ConfigParser config)
@@ -49,7 +55,7 @@ void Server::start(ConfigParser config)
 		if (*fd < 0)
             throw std::runtime_error("Socket error");
 		setsockopt(*fd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int));
-		fcntl(*fd, F_SETFL, fcntl(*fd, F_GETFL, 0) | O_NONBLOCK);
+		setNonBlock(*fd);
 	}
 
 	for (fd = fds.begin(), so = allSockets.begin(); fd != fds.end(); fd++, so++) //bind the fds to the sockets and put them in listening mode
@@ -61,6 +67,8 @@ void Server::start(ConfigParser config)
     }
 	processConnections(config);
 }
+
+
 
 void Server::processConnections(ConfigParser config)
 {
@@ -134,27 +142,68 @@ bool Server::acceptNewConnectionsIfAvailable(std::vector<pollfd> &pollfds, int i
 	pollfds.push_back(tmp); //add the new fd/socket to the set, considered as "client"
 
 
+	int BUFFER_SIZE_READ = 1024;
 	// read the from the client
-	char buffer[1024];
-	int bytes = read(_fd, buffer, 1024);
-	if (bytes == -1) {
-		std::cout << "Error reading from client: " << strerror(errno) << std::endl;
+	char buffer[1024 * 1024];
+	std::fill(buffer, buffer + BUFFER_SIZE_READ, 0);
+	std::string request;
+
+	while (1) {
+		int bytes = read(_fd, buffer, BUFFER_SIZE_READ);
+		if (bytes == -1) {
+			std::cout << "Error reading from client: " << strerror(errno) << std::endl;
+			break;
+		}
+		if (bytes == 0) {
+			std::cout << "Client closed connection" << std::endl;
+			break;
+		}
+		std::cout << "Read " << bytes << " bytes from client" << std::endl;
+		std::cout << "Data: " << buffer << std::endl;
+
+		// check if the buffer is empty
+		if (bytes == 0) {
+			break;
+		}
+
+		request.append(buffer, bytes);
+		if (bytes < BUFFER_SIZE_READ) {
+			break;
+		}
+		std::fill(buffer, buffer + BUFFER_SIZE_READ, 0);
+	}
+
+	std::string response;
+	RequestParser rp = RequestParser(config);
+	SRet<bool> ret = rp.parseRequest(request);
+	if (ret.status == EXIT_FAILURE) {
+		std::cout << "Error parsing request: " << ret.err << std::endl;
+		response = ErrorResponse::getErrorResponse(400);
 	}
 	else {
-		std::cout << "Read " << bytes << " bytes from client" << std::endl;
-		buffer[bytes] = '\0';
-		RequestParser rp = RequestParser();
-		SRet<bool> ret = rp.parseRequest(buffer, config);
-		if (ret.status == EXIT_FAILURE) {
-			std::cout << "Error parsing request: " << ret.err << std::endl;
+		std::cout << "Parsed request successfully" << std::endl;
+		SRet<std::string> realResponse = rp.prepareResponse();
+		if (realResponse.status == EXIT_FAILURE) {
+			response = realResponse.err;
 		}
 		else {
-			std::cout << "Parsed request successfully" << std::endl;
+			response = realResponse.data;
 		}
+		// response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 12\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS\r\nAccess-Control-Allow-Headers: *\r\n\r\nHello World!";
 	}
+
+	
 	// write to the client
-	std::string lastCharOfBuffer = buffer;
-	std::string response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 12\r\n\r\nHello World!";
+	// std::string response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 12\r\n\r\nHello World!";
+	
+	// create a redirect response
+	// std::string response = "HTTP/1.1 301 Moved Permanently\r\nLocation: https://www.google.com\r\n\r\n";
+
+	// create response with cors.
+	// - Access-Control-Allow-Origin
+	// - AMethodccess-Control-Allow-s
+	// - Access-Control-Allow-Headers
+
 	int bytesWritten = write(_fd, response.c_str(), response.size());
 	if (bytesWritten == -1) {
 		std::cout << "Error writing to client: " << strerror(errno) << std::endl;

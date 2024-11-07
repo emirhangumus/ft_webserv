@@ -1,19 +1,21 @@
 #include "Utils.hpp"
 #include "RequestParser.hpp"
+#include "ErrorResponse.hpp"
 #include <stdlib.h>
 
-RequestParser::RequestParser()
+RequestParser::RequestParser(ConfigParser config)
 {
     _parsingIndex = 0;
+    this->config = config;
+    _isParsed = false;
 }
 
 RequestParser::~RequestParser()
 {
 }
 
-SRet<bool> RequestParser::parseRequest(std::string request, ConfigParser config)
+SRet<bool> RequestParser::parseRequest(std::string request)
 {
-    (void)config;
     size_t endOfRequestLine = request.find("\r\n");
     if (endOfRequestLine == std::string::npos)
         return SRet<bool>(EXIT_FAILURE, false, "Invalid request");
@@ -55,16 +57,23 @@ SRet<bool> RequestParser::parseRequest(std::string request, ConfigParser config)
         std::cout << "Cookie: " << it->first << " = " << it->second << std::endl;
     }
 
-
+    _isParsed = true;
     return SRet<bool>(EXIT_SUCCESS, true);
 }
 
 SRet<bool> RequestParser::parseRequestLine(std::string requestLine)
 {
+    // if there is not two spaces in the request line, it is invalid
+    if (countThis(requestLine, ' ') != 2)
+        return SRet<bool>(EXIT_FAILURE, false, "Invalid request line");
+
     size_t firstSpace = requestLine.find(" ");
     if (firstSpace == std::string::npos)
         return SRet<bool>(EXIT_FAILURE, false, "Invalid request line");
     _method = requestLine.substr(0, firstSpace);
+
+    // TODO: CHECK THE CONFIG AND SEE IF THE METHOD IS ALLOWED
+
     size_t secondSpace = requestLine.find(" ", firstSpace + 1);
     if (secondSpace == std::string::npos)
         return SRet<bool>(EXIT_FAILURE, false, "Invalid request line");
@@ -138,9 +147,49 @@ SRet<bool> RequestParser::parseCookies(std::string cookies)
         size_t equalPos = cookiePairs[i].find("=");
         if (equalPos == std::string::npos)
             return SRet<bool>(EXIT_FAILURE, false, "Invalid cookie pair");
-        std::string key = cookiePairs[i].substr(0, equalPos);
+        if (cookiePairs[i][0] != ' ')
+            return SRet<bool>(EXIT_FAILURE, false, "Invalid cookie pair");
+        std::string key = cookiePairs[i].substr(1, equalPos - 1);
         std::string value = cookiePairs[i].substr(equalPos + 1);
         _cookies[key] = value;
     }
     return SRet<bool>(EXIT_SUCCESS, true);
+}
+
+SRet<std::string> RequestParser::prepareResponse()
+{
+    // check the rules via the config
+
+    // find the `Host`
+    std::map<std::string, std::string>::iterator it = _headers.find("Host");
+    if (it == _headers.end())
+        return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(400));
+
+    // find the corrent config
+    std::string host = it->second;
+    Config serverConfig = config.getServerConfig(host);
+    if (serverConfig.getPort() == 0)
+        return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(400));
+
+    // check the method
+    // std::map<std::string, Location> locations = serverConfig.getLocations();
+    // std::map<std::string, Location>::iterator locIt = locations.find(_path);
+    // if (locIt == locations.end())
+    //     return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(404));
+
+    Location loc = serverConfig.getCorrentLocation(_path);
+
+    // print the location
+    loc.printLocation();
+
+    Location mainLoc = serverConfig.getMainLocation();
+
+    std::cout << "Main Location: " << std::endl;
+    mainLoc.printLocation();
+
+    // check the method
+    // std::vector<std::string> allowMethods = locIt->second.getAllowMethods();
+    
+    std::string response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 12\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS\r\nAccess-Control-Allow-Headers: *\r\n\r\nHello World!";
+    return SRet<std::string>(EXIT_SUCCESS, response); 
 }

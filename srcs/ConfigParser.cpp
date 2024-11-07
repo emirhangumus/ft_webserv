@@ -4,7 +4,6 @@
 #include "Utils.hpp"
 #include <iostream>
 #include <fstream>
-#include <cstdlib>
 #include <algorithm>
 #include <map>
 
@@ -115,9 +114,10 @@ SRet<std::map<std::string, Config> > ConfigParser::parseConfigFile(const std::st
     std::string listen;
     std::vector<std::string> server_names;
     Location main_location;
-    std::map<std::string, Location> locations;
+    std::map<std::string, Location, LocationComparator> locations;
 
     std::string current_location_key;
+    bool is_default_config_set = false;
 
     for (size_t i = 0; i < values.size(); i++)
     {
@@ -144,6 +144,10 @@ SRet<std::map<std::string, Config> > ConfigParser::parseConfigFile(const std::st
                 Config current_config = Config();
                 current_config.fillConfig(listen, server_names, main_location, locations);
                 config[listen] = current_config;
+                if (!is_default_config_set) {
+                    defaultConfig = current_config;
+                    is_default_config_set = true;
+                }
 
                 listen = "";
                 server_names.clear();
@@ -189,8 +193,15 @@ SRet<std::map<std::string, Config> > ConfigParser::parseConfigFile(const std::st
                         return SRet<std::map<std::string, Config> >(EXIT_FAILURE, config, "Error: invalid config file: location directive must have 2 arguments");
                     
                     current_location_key = location_values[0];
+
+                    // location_key have to start with '/'
+                    if (current_location_key[0] != '/')
+                        return SRet<std::map<std::string, Config> >(EXIT_FAILURE, config, "Error: invalid config file: location key must start with '/'");
+
                     locations[current_location_key] = Location();
                     locations[current_location_key].setPath(current_location_key);
+                    unsigned int slash_count = std::count(current_location_key.begin(), current_location_key.end(), '/');
+                    locations[current_location_key].setPathDeepLevel(slash_count);
                 } else if (directive == "root") {
                     main_location.setRoot(value);
                 } else if (directive == "index") {
@@ -251,4 +262,12 @@ std::vector<unsigned int> ConfigParser::getAllPorts() const
     for (std::map<std::string, Config>::const_iterator it = m_config.begin(); it != m_config.end(); it++)
         ports.push_back(it->second.getListen().second);
     return ports;
+}
+
+Config ConfigParser::getServerConfig(const std::string &host) const
+{
+    std::map<std::string, Config>::const_iterator it = m_config.find(host);
+    if (it == m_config.end())
+        return defaultConfig;
+    return it->second;
 }
