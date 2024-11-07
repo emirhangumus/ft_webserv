@@ -15,7 +15,6 @@ Location::Location()
     this->autoindex = "";
     this->client_max_body_size = "";
     this->allow_methods = std::vector<std::string>();
-    this->limit_except = "";
     this->cgi_path = "";
     this->error_page = "";
     this->return_ = "";
@@ -56,11 +55,6 @@ void Location::setAllowMethods(const std::vector<std::string> allow_methods)
     this->allow_methods = allow_methods;
 }
 
-void Location::setLimitExcept(const std::string &limit_except)
-{
-    this->limit_except = limit_except;
-}
-
 void Location::setCgiPath(const std::string &cgi_path)
 {
     this->cgi_path = cgi_path;
@@ -94,7 +88,6 @@ void Location::printLocation() const
         std::cout << *it << " ";
     }
     std::cout << std::endl;
-    std::cout << "Limit Except: " << this->limit_except << std::endl;
     std::cout << "Cgi Path: " << this->cgi_path << std::endl;
     std::cout << "Error Page: " << this->error_page << std::endl;
     std::cout << "Return: " << this->return_ << std::endl;

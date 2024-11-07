@@ -21,7 +21,6 @@ ConfigParser::ConfigParser()
     _VALID_DIRECTIVES.push_back("return");
     _VALID_DIRECTIVES.push_back("client_max_body_size");
     _VALID_DIRECTIVES.push_back("allow_methods");
-    _VALID_DIRECTIVES.push_back("limit_except");
     _VALID_DIRECTIVES.push_back("cgi_path");
     _VALID_DIRECTIVES.push_back("error_page");
     VALID_DIRECTIVES = _VALID_DIRECTIVES;
@@ -200,8 +199,6 @@ SRet<std::map<std::string, Config> > ConfigParser::parseConfigFile(const std::st
 
                     locations[current_location_key] = Location();
                     locations[current_location_key].setPath(current_location_key);
-                    unsigned int slash_count = std::count(current_location_key.begin(), current_location_key.end(), '/');
-                    locations[current_location_key].setPathDeepLevel(slash_count);
                 } else if (directive == "root") {
                     main_location.setRoot(value);
                 } else if (directive == "index") {
@@ -216,8 +213,6 @@ SRet<std::map<std::string, Config> > ConfigParser::parseConfigFile(const std::st
                     main_location.setClientMaxBodySize(value);
                 } else if (directive == "allow_methods") {
                     main_location.setAllowMethods(split(value, ' '));
-                } else if (directive == "limit_except") {
-                    main_location.setLimitExcept(value);
                 } else if (directive == "cgi_path") {
                     main_location.setCgiPath(value);
                 } else if (directive == "error_page") {
@@ -238,8 +233,6 @@ SRet<std::map<std::string, Config> > ConfigParser::parseConfigFile(const std::st
                     locations[current_location_key].setClientMaxBodySize(value);
                 } else if (directive == "allow_methods") {
                     locations[current_location_key].setAllowMethods(split(value, ' '));
-                } else if (directive == "limit_except") {
-                    locations[current_location_key].setLimitExcept(value);
                 } else if (directive == "cgi_path") {
                     locations[current_location_key].setCgiPath(value);
                 } else if (directive == "error_page") {

@@ -2,6 +2,9 @@
 #include "RequestParser.hpp"
 #include "ErrorResponse.hpp"
 #include <stdlib.h>
+#include <iostream>
+#include <fstream>
+#include <sys/stat.h>
 
 RequestParser::RequestParser(ConfigParser config)
 {
@@ -171,25 +174,56 @@ SRet<std::string> RequestParser::prepareResponse()
     if (serverConfig.getPort() == 0)
         return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(400));
 
-    // check the method
-    // std::map<std::string, Location> locations = serverConfig.getLocations();
-    // std::map<std::string, Location>::iterator locIt = locations.find(_path);
-    // if (locIt == locations.end())
-    //     return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(404));
-
     Location loc = serverConfig.getCorrentLocation(_path);
-
-    // print the location
-    loc.printLocation();
-
-    Location mainLoc = serverConfig.getMainLocation();
-
-    std::cout << "Main Location: " << std::endl;
-    mainLoc.printLocation();
-
-    // check the method
-    // std::vector<std::string> allowMethods = locIt->second.getAllowMethods();
     
-    std::string response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 12\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS\r\nAccess-Control-Allow-Headers: *\r\n\r\nHello World!";
+    // check the method
+    if (std::find(loc.getAllowMethods().begin(), loc.getAllowMethods().end(), _method) == loc.getAllowMethods().end())
+        return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(405));
+
+    // check the body size
+    if (loc.getClientMaxBodySize() != "" && _body.size() > stringtoui(loc.getClientMaxBodySize()))
+        return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(413));
+
+    // check the path
+    if (loc.getPath() != _path)
+        return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(404));
+
+    // prepare the response
+
+    // goto the root directory and search the 'index' file
+    std::string index = loc.getIndex();
+    std::string root = loc.getRoot();
+    std::string path = root + _path;
+    struct stat buffer;
+    if (stat(path.c_str(), &buffer) == 0)
+    {
+        if (S_ISDIR(buffer.st_mode))
+        {
+            if (index == "")
+                return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(404));
+            path += "/" + index;
+        }
+    }
+    else
+        return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(404));
+
+    // open the file
+    std::ifstream file(path.c_str());
+    if (!file.is_open())
+        return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(404));
+
+    // read the file
+    std::string response;
+    std::string line;
+    while (std::getline(file, line))
+        response += line + "\n";
+    file.close();
+
+    // find the content-type (html)
+    std::string contentType = "text/html";
+
+    // prepare the response
+    response = "HTTP/1.1 200 OK\r\nContent-Type: " + contentType + "\r\nContent-Length: " + size_tToString(response.size()) + "\r\n\r\n" + response;
+
     return SRet<std::string>(EXIT_SUCCESS, response); 
 }
