@@ -18,9 +18,7 @@ int main(int ac, char **av)
         std::cerr << ret.err << std::endl;
         return 1;
     }
-
     Server server = Server();
-
     server.start(parser);
 
     return 0;

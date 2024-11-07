@@ -23,10 +23,14 @@ public:
     void start(ConfigParser config);
     void processConnections(ConfigParser config);
     bool acceptNewConnectionsIfAvailable(std::vector<pollfd> &pollfds, int i, ConfigParser config);
+    bool acceptConnection(std::vector<pollfd> &pollfds, int i);
+    bool readFromClient(std::vector<pollfd> &pollfds, int i);
+    bool writeToClient(std::vector<pollfd> &pollfds, int i, ConfigParser config);
 private:
     std::vector<struct sockaddr_in> allSockets;
     std::vector<int> fds;
     unsigned int totalPortSize;
+    std::map<int, std::string> requests;
 };
 
 #endif // SERVER_HPP

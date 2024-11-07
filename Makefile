@@ -18,6 +18,9 @@ INCLUDES = -I$(INCS_DIR)
 # Build targets
 all: $(NAME)
 
+run: all
+	./$(NAME) ./confs/default.conf
+
 $(NAME): $(OBJS)
 	$(CC) $(CFLAGS) $(OBJS) -o $(NAME)
 
