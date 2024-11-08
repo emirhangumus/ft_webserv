@@ -28,7 +28,7 @@ void Config::fillConfig(std::string listen, std::vector<std::string> server_name
         locations[it->first].setCgiParams(locations[it->first].getCgiParams().empty() ? main_location.getCgiParams() : locations[it->first].getCgiParams());
         locations[it->first].setErrorPage(locations[it->first].getErrorPage() == "" ? main_location.getErrorPage() : locations[it->first].getErrorPage());
         locations[it->first].setIndex(locations[it->first].getIndex() == "" ? main_location.getIndex() : locations[it->first].getIndex());
-        locations[it->first].setReturn(locations[it->first].getReturn() == "" ? main_location.getReturn() : locations[it->first].getReturn());
+        locations[it->first].setReturn(locations[it->first].getReturn().first == -1 ? main_location.getReturn() : locations[it->first].getReturn());
         locations[it->first].setRoot(locations[it->first].getRoot() == "" ? main_location.getRoot() : locations[it->first].getRoot());
         locations[it->first].setTryFiles(locations[it->first].getTryFiles() == "" ? main_location.getTryFiles() : locations[it->first].getTryFiles());
 
@@ -46,7 +46,7 @@ void Config::fillConfig(std::string listen, std::vector<std::string> server_name
     main_location.setCgiParams(main_location.getCgiParams().empty() ? std::map<std::string, std::string>() : main_location.getCgiParams());
     main_location.setErrorPage(main_location.getErrorPage() == "" ? "" : main_location.getErrorPage());
     main_location.setIndex(main_location.getIndex() == "" ? "index.html" : main_location.getIndex());
-    main_location.setReturn(main_location.getReturn() == "" ? "" : main_location.getReturn());
+    main_location.setReturn(main_location.getReturn().first == -1 ? std::pair<int, std::string>(-1, "") : main_location.getReturn());
     main_location.setRoot(main_location.getRoot() == "" ? "" : main_location.getRoot());
     main_location.setTryFiles(main_location.getTryFiles() == "" ? "" : main_location.getTryFiles());
 

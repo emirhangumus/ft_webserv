@@ -235,6 +235,14 @@ SRet<std::string> RequestParser::prepareResponse()
     if (loc.getClientMaxBodySize() != -1 && compareSizeTandLongLong(_body.size(), loc.getClientMaxBodySize()))
         return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(413));
 
+    // is has "return"? if so, redirect
+    if (loc.getReturn().first != -1)
+    {
+        std::pair<int, std::string> return_ = loc.getReturn();
+        std::string response = "HTTP/1.1 " + size_tToString(return_.first) + " " + return_.second + "\r\nLocation: " + return_.second + "\r\n\r\n";
+        return SRet<std::string>(EXIT_SUCCESS, response);
+    }
+
     // is it a CGI request?
     if (loc.getCgiParams().size() != 0)
     {
@@ -252,7 +260,6 @@ SRet<std::string> RequestParser::prepareResponse()
             DIR *dir = opendir(path.c_str());
             if (dir == NULL)
             {
-                std::cout << "Pathxxxxxxx: " << path << std::endl;
                 // is this a file?
                 struct stat buffer;
                 if (stat(path.c_str(), &buffer) == 0)
@@ -333,7 +340,7 @@ SRet<std::string> RequestParser::prepareResponse()
             file.close();
 
             // find the content-type (html)
-            std::string contentType = "text/html";
+            std::string contentType = "text/html"; // TODO: It should be determined by the file extension :D
 
             // prepare the response
             response = "HTTP/1.1 200 OK\r\nContent-Type: " + contentType + "\r\nContent-Length: " + size_tToString(response.size()) + "\r\n\r\n" + response;

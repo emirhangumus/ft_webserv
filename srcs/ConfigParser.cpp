@@ -226,7 +226,13 @@ SRet<std::map<std::string, Config> > ConfigParser::parseConfigFile(const std::st
                 } else if (directive == "autoindex") {
                     main_location.setAutoindex(value);
                 } else if (directive == "return") {
-                    main_location.setReturn(value);
+                    std::vector<std::string> return_values = split(value, ' ');
+                    if (return_values.size() != 2)
+                        return SRet<std::map<std::string, Config> >(EXIT_FAILURE, config, "Error: invalid config file: return directive must have 2 argument. First argument is return code, second is return value");
+                    if (stringtoui(return_values[0]) < 100 || stringtoui(return_values[0]) > 599)
+                        return SRet<std::map<std::string, Config> >(EXIT_FAILURE, config, "Error: invalid config file: return code must be between 100 and 599");
+                    std::pair<int, std::string> return_ = std::make_pair(stringtoui(return_values[0]), return_values[1]);
+                    main_location.setReturn(return_);
                 } else if (directive == "client_max_body_size") {
                     main_location.setClientMaxBodySize(convertSizeToBytes(value));
                 } else if (directive == "allow_methods") {
@@ -247,7 +253,13 @@ SRet<std::map<std::string, Config> > ConfigParser::parseConfigFile(const std::st
                 } else if (directive == "autoindex") {
                     locations[current_location_key].setAutoindex(value);
                 } else if (directive == "return") {
-                    locations[current_location_key].setReturn(value);
+                    std::vector<std::string> return_values = split(value, ' ');
+                    if (return_values.size() != 2)
+                        return SRet<std::map<std::string, Config> >(EXIT_FAILURE, config, "Error: invalid config file: return directive must have 2 argument. First argument is return code, second is return value");
+                    if (stringtoui(return_values[0]) < 100 || stringtoui(return_values[0]) > 599)
+                        return SRet<std::map<std::string, Config> >(EXIT_FAILURE, config, "Error: invalid config file: return code must be between 100 and 599");
+                    std::pair<int, std::string> return_ = std::make_pair(stringtoi(return_values[0]), return_values[1]);
+                    locations[current_location_key].setReturn(return_);
                 } else if (directive == "client_max_body_size") {
                     locations[current_location_key].setClientMaxBodySize(convertSizeToBytes(value));
                 } else if (directive == "allow_methods") {

@@ -1,59 +1,49 @@
 #include <iostream>
-#include <string>
-#include <map>
-#include <stdexcept>
 #include <sstream>
-#include <cctype>
+#include <string>
+#include <iomanip>
 
-long long convertSizeToBytes(const std::string& sizeStr) {
-    // Define conversion factors for each unit
-    std::map<std::string, long long> unitMap;
-    unitMap["KB"] = 1024LL;
-    unitMap["MB"] = 1024LL * 1024;
-    unitMap["GB"] = 1024LL * 1024 * 1024;
-    unitMap["TB"] = 1024LL * 1024 * 1024 * 1024;
+std::string unchunkRequest(const std::string& chunkedData) {
+    std::istringstream stream(chunkedData);
+    std::ostringstream bodyStream;
+    std::string line;
 
-    // Find the first non-digit character to separate number and unit
-    size_t i = 0;
-    while (i < sizeStr.size() && (isdigit(sizeStr[i]) || sizeStr[i] == '.')) ++i;
-    
-    if (i == 0 || i == sizeStr.size()) {
-        throw std::invalid_argument("Invalid size format");
+    while (true) {
+        // Read the chunk size line
+        std::getline(stream, line);
+        int chunkSize;
+        std::istringstream(line) >> std::hex >> chunkSize;
+
+        // Stop if the chunk size is zero (end of chunks)
+        if (chunkSize == 0) {
+            // Consume the trailing CRLF after the last chunk
+            std::getline(stream, line); // Final CRLF
+            break;
+        }
+
+        // Read exactly `chunkSize` bytes for the current chunk
+        char* buffer = new char[chunkSize];
+        stream.read(buffer, chunkSize);
+        bodyStream.write(buffer, chunkSize);
+        delete[] buffer;
+
+        // Consume the trailing CRLF after the chunk
+        stream.ignore(2); // Skip "\r\n"
     }
 
-    // Extract numeric part and unit part
-    std::istringstream numStream(sizeStr.substr(0, i));
-    double number;
-    numStream >> number;
-
-    std::string unit = sizeStr.substr(i);
-    for (size_t j = 0; j < unit.size(); ++j) {
-        unit[j] = toupper(unit[j]);
-    }
-
-    // Find the unit in the map and apply the conversion factor
-    std::map<std::string, long long>::iterator it = unitMap.find(unit);
-    if (it == unitMap.end()) {
-        throw std::invalid_argument("Invalid or unsupported unit");
-    }
-
-    // Calculate the result in bytes
-    return static_cast<long long>(number * it->second);
+    return bodyStream.str();
 }
 
 int main() {
-    try {
-        std::string size = "200MB";
-        std::cout << size << " = " << convertSizeToBytes(size) << " bytes" << std::endl;
-        
-        size = "2GB";
-        std::cout << size << " = " << convertSizeToBytes(size) << " bytes" << std::endl;
-        
-        size = "5KB";
-        std::cout << size << " = " << convertSizeToBytes(size) << " bytes" << std::endl;
-    } catch (const std::exception& e) {
-        std::cerr << e.what() << std::endl;
-    }
-    
+    std::string chunkedRequest = 
+        "7\r\nHello, \r\n"
+        "4\r\nthis\r\n"
+        "6\r\n is a \r\n"
+        "4\r\ntest\r\n"
+        "0\r\n\r\n";
+
+    std::string unchunkedBody = unchunkRequest(chunkedRequest);
+    std::cout << "Unchunked body:\n" << unchunkedBody << std::endl;
+
     return 0;
 }

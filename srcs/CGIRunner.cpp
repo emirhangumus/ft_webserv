@@ -43,8 +43,8 @@ std::string mapToString(const std::map<std::string, std::string> &params)
     {
         result += it->first + "=" + it->second + "&";
     }
-    // if (!result.empty())
-    //     result.pop_back();
+    if (!result.empty())
+        result.erase(result.size() - 1);
     return result;
 }
 
@@ -55,8 +55,18 @@ std::string cookieMapToString(const std::map<std::string, std::string> &cookies)
     {
         result += it->first + "=" + it->second + ";";
     }
-    // if (!result.empty())
-    //     result.pop_back();
+    if (!result.empty())
+        result.erase(result.size() - 1);
+    return result;
+}
+
+std::vector<std::string> pathToRequestURIandScriptName(const std::string &path)
+{
+    std::vector<std::string> result;
+    std::string requestURI = path.substr(0, path.find_last_of("/") + 1);
+    std::string scriptName = path.substr(path.find_last_of("/") + 1);
+    result.push_back(requestURI);
+    result.push_back(scriptName);
     return result;
 }
 
@@ -67,50 +77,23 @@ SRet<std::string> CGIRunner::runCGI(const std::string &_path, const std::map<std
     const std::map<std::string, std::string>& cgi_params = _loc.getCgiParams();
     std::string cgiRunnerPath;
     for (std::map<std::string, std::string>::const_iterator param_it = cgi_params.begin(); param_it != cgi_params.end(); ++param_it) 
-    {
-        std::cout << "\033[1;34m" << param_it->first << " = " << param_it->second << "\033[0m" << std::endl;
         if (param_it->first == extension)
             cgiRunnerPath = param_it->second;
-    }
 
     std::string file = _loc.getRoot() + "/" + extractFileName(_path);
-
-    // print all with different colors
-    std::cout << "\033[1;31mExtension: " << extension << "\033[0m" << std::endl;
-    std::cout << "\033[1;32mPath: " << _path << "\033[0m" << std::endl;
-    std::cout << "\033[1;33mCGI: " << cgiRunnerPath << "\033[0m" << std::endl;
-    std::cout << "\033[1;34mFile: " << file << "\033[0m" << std::endl;
-
-    for (std::map<std::string, std::string>::const_iterator param_it = _cookies.begin(); param_it != _cookies.end(); ++param_it) 
-    {
-        std::cout << "\033[1;35m" << param_it->first << " = " << param_it->second << "\033[0m" << std::endl;
-    }
-
-    // print _loc.getCgiParams()
-    
-
-    // return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(500));
-    // check if the file exists
-    // struct stat buffer;
-    // if (stat(cgiFullPath.c_str(), &buffer) != 0)
-    //     return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(404));
-    
-    // if (!(buffer.st_mode & S_IXUSR))
-    //     return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(403));
-    
-    // if (!S_ISREG(buffer.st_mode))
-    //     return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(403));
 
     std::string absPath = get_absolute_path(file);
     if (absPath.empty())
         return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(404));
     
-    std::string _REQUEST_URI = "REQUEST_URI=" + _path;
-    std::string _SCRIPT_NAME = "SCRIPT_NAME=" + _path;
+    std::vector<std::string> requestURIandScriptName = pathToRequestURIandScriptName(_path);
+    std::string _REQUEST_URI = "REQUEST_URI=" + requestURIandScriptName[0];
+    // std::string _SCRIPT_NAME = "SCRIPT_NAME=" + requestURIandScriptName[1];
     std::string _SCRIPT_FILENAME = "SCRIPT_FILENAME=" + absPath;
     std::string _QUERY_STRING = "QUERY_STRING=" + mapToString(_params) + _body;
     std::string _METHOD = "REQUEST_METHOD=" + _method;
     std::string _HTTP_COOKIE = "HTTP_COOKIE=" + cookieMapToString(_cookies);
+    std::string _PATH_INFO = "PATH_INFO=" + _path;
 
     std::cout << "_QUERY_STRING: " << _QUERY_STRING << std::endl;
 
@@ -127,49 +110,66 @@ SRet<std::string> CGIRunner::runCGI(const std::string &_path, const std::map<std
         const_cast<char *>("REMOTE_USER="),
         const_cast<char *>(_METHOD.c_str()),  // The method of the request
         const_cast<char *>(_REQUEST_URI.c_str()),  // The URI of the request
-        const_cast<char *>(_SCRIPT_NAME.c_str()),  // The name of the script
+        // const_cast<char *>(_SCRIPT_NAME.c_str()),  // The name of the script
         const_cast<char *>(_SCRIPT_FILENAME.c_str()),  // The path of the script
         const_cast<char *>("SERVER_NAME=localhost"),
         const_cast<char *>("SERVER_PORT=8080"),
         const_cast<char *>("SERVER_PROTOCOL=HTTP/1.1"),
         const_cast<char *>("SERVER_SOFTWARE=webserv"),
         const_cast<char *>(_HTTP_COOKIE.c_str()),  // The cookies
+        const_cast<char *>(_PATH_INFO.c_str()),  // The path info
         NULL
     };
-    std::cout << "PATH: " << file << std::endl;
+    
     int pipefd[2];
-    if (pipe(pipefd) == -1)
+    int bodyPipe[2];
+    if (pipe(pipefd) == -1 || pipe(bodyPipe) == -1)
         return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(500));
 
     pid_t pid = fork();
     if (pid == -1)
         return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(500));
+
     if (pid == 0)
     {
         close(pipefd[0]);
-        dup2(pipefd[1], 1);
+        close(bodyPipe[1]);
+
+        dup2(pipefd[1], STDOUT_FILENO);
+        dup2(bodyPipe[0], STDIN_FILENO);
         close(pipefd[1]);
+        close(bodyPipe[0]);
+
         if (execve(cgiRunnerPath.c_str(), argv, envp) == -1)
-            return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(500));
+            exit(EXIT_FAILURE);  // Exit if execve fails
     }
     else
     {
-        // wait for the child process to finish
         close(pipefd[1]);
+        close(bodyPipe[0]);
+
+        if (!_body.empty())
+        {
+            write(bodyPipe[1], _body.c_str(), _body.size());
+        }
+        close(bodyPipe[1]);
+
         std::string output;
         char buffer[4096];
         int bytesRead;
-        while ((bytesRead = read(pipefd[0], buffer, 4096)) > 0)
+        while ((bytesRead = read(pipefd[0], buffer, sizeof(buffer) - 1)) > 0)
         {
             buffer[bytesRead] = '\0';
             output += buffer;
         }
         close(pipefd[0]);
+
         int status;
         waitpid(pid, &status, 0);
         std::cout << "Output: " << output << std::endl;
         std::string responseLine = "HTTP/1.1 200 OK\r\n";
         std::string _output = responseLine + output;
+        
         if (WIFEXITED(status))
             return SRet<std::string>(WEXITSTATUS(status), _output, "");
     }

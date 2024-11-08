@@ -18,7 +18,7 @@ Location::Location()
     this->allow_methods = std::vector<std::string>();
     this->cgi_params = std::map<std::string, std::string>();
     this->error_page = "";
-    this->return_ = "";
+    this->return_ = std::pair<int, std::string>(-1, "");
 }
 
 Location::~Location()
@@ -66,10 +66,13 @@ void Location::setErrorPage(const std::string &error_page)
     this->error_page = error_page;
 }
 
-void Location::setReturn(const std::string &return_)
+void Location::setReturn(const std::pair<int, std::string>& return_)
 {
+    std::cout << "Return: " << return_.first << " " << return_.second << std::endl;
+    if ((return_.first < 100 || return_.first > 599) && return_.first != -1)
+        throw std::runtime_error("Error: invalid config file: return code must be between 100 and 599");
     this->return_ = return_;
-}
+} 
 
 void Location::setTryFiles(const std::string &try_files)
 {
@@ -90,8 +93,9 @@ void Location::printLocation() const
     }
     std::cout << std::endl;
     std::cout << "Error Page: " << this->error_page << std::endl;
-    std::cout << "Return: " << this->return_ << std::endl;
+    std::cout << "Return: " << this->return_.first << " " << this->return_.second << std::endl;
     std::cout << "Try Files: " << this->try_files << std::endl;
+
 
     std::cout << "Cgi Params: " << std::endl;
     for (std::map<std::string, std::string>::const_iterator it = this->cgi_params.begin(); it != this->cgi_params.end(); ++it)

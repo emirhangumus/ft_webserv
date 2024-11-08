@@ -66,6 +66,26 @@ unsigned int stringtoui(const std::string &str)
     return result * sign;
 }
 
+int stringtoi(const std::string &str)
+{
+    int result = 0;
+    int sign = 1;
+    size_t i = 0;
+
+    if (str[0] == '-')
+    {
+        sign = -1;
+        i++;
+    }
+
+    for (; i < str.size(); i++)
+    {
+        result = result * 10 + str[i] - '0';
+    }
+
+    return result * sign;
+}
+
 // void bzero(void *s, size_t n)
 // {
 //     char *ptr = (char *)s;
