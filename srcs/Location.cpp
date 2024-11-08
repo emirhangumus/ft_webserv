@@ -1,7 +1,8 @@
 #include "Location.hpp"
+#include "Utils.hpp"
 #include <iostream>
-
 #include <string>
+#include <map>
 #include <vector>
 #include <iostream>
 
@@ -12,10 +13,10 @@ Location::Location()
     this->path = "";
     this->root = "";
     this->index = "";
-    this->autoindex = "";
-    this->client_max_body_size = "";
+    this->autoindex = "off";
+    this->client_max_body_size = -1;
     this->allow_methods = std::vector<std::string>();
-    this->cgi_path = "";
+    this->cgi_params = std::map<std::string, std::string>();
     this->error_page = "";
     this->return_ = "";
 }
@@ -45,7 +46,7 @@ void Location::setAutoindex(const std::string &autoindex)
     this->autoindex = autoindex;
 }
 
-void Location::setClientMaxBodySize(const std::string &client_max_body_size)
+void Location::setClientMaxBodySize(long long client_max_body_size)
 {
     this->client_max_body_size = client_max_body_size;
 }
@@ -55,9 +56,9 @@ void Location::setAllowMethods(const std::vector<std::string> allow_methods)
     this->allow_methods = allow_methods;
 }
 
-void Location::setCgiPath(const std::string &cgi_path)
+void Location::setCgiParams(const std::map<std::string, std::string> &cgi_params)
 {
-    this->cgi_path = cgi_path;
+    this->cgi_params = cgi_params;
 }
 
 void Location::setErrorPage(const std::string &error_page)
@@ -88,9 +89,14 @@ void Location::printLocation() const
         std::cout << *it << " ";
     }
     std::cout << std::endl;
-    std::cout << "Cgi Path: " << this->cgi_path << std::endl;
     std::cout << "Error Page: " << this->error_page << std::endl;
     std::cout << "Return: " << this->return_ << std::endl;
     std::cout << "Try Files: " << this->try_files << std::endl;
+
+    std::cout << "Cgi Params: " << std::endl;
+    for (std::map<std::string, std::string>::const_iterator it = this->cgi_params.begin(); it != this->cgi_params.end(); ++it)
+    {
+        std::cout << it->first << " = " << it->second << std::endl;
+    }
 }
 

@@ -42,6 +42,8 @@ public:
     Location getMainLocation() const { return main_location; }
     Location getCorrentLocation(std::string path);
 
+    void printConfig() const;
+
 private:
     std::pair<std::string, unsigned int> listen;
     std::vector<std::string> server_names;

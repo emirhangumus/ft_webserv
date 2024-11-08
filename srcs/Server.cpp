@@ -148,10 +148,12 @@ bool Server::acceptNewConnectionsIfAvailable(std::vector<pollfd> &pollfds, int i
 	std::fill(buffer, buffer + BUFFER_SIZE_READ, 0);
 	std::string request;
 
+	int is_error = 0;
 	while (1) {
 		int bytes = read(_fd, buffer, BUFFER_SIZE_READ);
 		if (bytes == -1) {
 			std::cout << "Error reading from client: " << strerror(errno) << std::endl;
+			is_error = 1;
 			break;
 		}
 		if (bytes == 0) {
@@ -174,22 +176,27 @@ bool Server::acceptNewConnectionsIfAvailable(std::vector<pollfd> &pollfds, int i
 	}
 
 	std::string response;
-	RequestParser rp = RequestParser(config);
-	SRet<bool> ret = rp.parseRequest(request);
-	if (ret.status == EXIT_FAILURE) {
-		std::cout << "Error parsing request: " << ret.err << std::endl;
-		response = ErrorResponse::getErrorResponse(400);
-	}
-	else {
-		std::cout << "Parsed request successfully" << std::endl;
-		SRet<std::string> realResponse = rp.prepareResponse();
-		if (realResponse.status == EXIT_FAILURE) {
-			response = realResponse.err;
+	if (!is_error) {
+		RequestParser rp = RequestParser(config);
+		SRet<bool> ret = rp.parseRequest(request);
+		if (ret.status == EXIT_FAILURE) {
+			std::cout << "Error parsing request: " << ret.err << std::endl;
+			response = ErrorResponse::getErrorResponse(400);
 		}
 		else {
-			response = realResponse.data;
+			std::cout << "Parsed request successfully" << std::endl;
+			SRet<std::string> realResponse = rp.prepareResponse();
+			if (realResponse.status == EXIT_FAILURE) {
+				response = realResponse.err;
+				std::cout << "Error preparing response: " << response << std::endl;
+			}
+			else {
+				response = realResponse.data;
+			}
+			// response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 12\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS\r\nAccess-Control-Allow-Headers: *\r\n\r\nHello World!";
 		}
-		// response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 12\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS\r\nAccess-Control-Allow-Headers: *\r\n\r\nHello World!";
+	} else {
+		std::string response = ErrorResponse::getErrorResponse(500);
 	}
 
 	

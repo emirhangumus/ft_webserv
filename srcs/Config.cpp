@@ -24,8 +24,8 @@ void Config::fillConfig(std::string listen, std::vector<std::string> server_name
     std::map<std::string, Location, LocationComparator>::iterator it;
     for (it = locations.begin(); it != locations.end(); it++) {
         locations[it->first].setAutoindex(locations[it->first].getAutoindex() == "" ? main_location.getAutoindex() : locations[it->first].getAutoindex());
-        locations[it->first].setClientMaxBodySize(locations[it->first].getClientMaxBodySize() == "" ? main_location.getClientMaxBodySize() : locations[it->first].getClientMaxBodySize());
-        locations[it->first].setCgiPath(locations[it->first].getCgiPath() == "" ? main_location.getCgiPath() : locations[it->first].getCgiPath());
+        locations[it->first].setClientMaxBodySize(locations[it->first].getClientMaxBodySize() == -1 ? main_location.getClientMaxBodySize() : locations[it->first].getClientMaxBodySize());
+        locations[it->first].setCgiParams(locations[it->first].getCgiParams().empty() ? main_location.getCgiParams() : locations[it->first].getCgiParams());
         locations[it->first].setErrorPage(locations[it->first].getErrorPage() == "" ? main_location.getErrorPage() : locations[it->first].getErrorPage());
         locations[it->first].setIndex(locations[it->first].getIndex() == "" ? main_location.getIndex() : locations[it->first].getIndex());
         locations[it->first].setReturn(locations[it->first].getReturn() == "" ? main_location.getReturn() : locations[it->first].getReturn());
@@ -42,8 +42,8 @@ void Config::fillConfig(std::string listen, std::vector<std::string> server_name
      * default values for the main location block
      */
     main_location.setAutoindex(main_location.getAutoindex() == "" ? "off" : main_location.getAutoindex());
-    main_location.setClientMaxBodySize(main_location.getClientMaxBodySize() == "" ? "1m" : main_location.getClientMaxBodySize());
-    main_location.setCgiPath(main_location.getCgiPath() == "" ? "" : main_location.getCgiPath());
+    main_location.setClientMaxBodySize(main_location.getClientMaxBodySize() == -1 ? -1 : main_location.getClientMaxBodySize());
+    main_location.setCgiParams(main_location.getCgiParams().empty() ? std::map<std::string, std::string>() : main_location.getCgiParams());
     main_location.setErrorPage(main_location.getErrorPage() == "" ? "" : main_location.getErrorPage());
     main_location.setIndex(main_location.getIndex() == "" ? "index.html" : main_location.getIndex());
     main_location.setReturn(main_location.getReturn() == "" ? "" : main_location.getReturn());
@@ -159,4 +159,25 @@ Location Config::getCorrentLocation(std::string path) {
     }
 
     return main_location;
+}
+
+void Config::printConfig() const
+{
+    std::cout << "***************** Config Start *****************" << std::endl;
+    std::cout << "Listen: " << listen.first << ":" << listen.second << std::endl;
+    std::cout << "Server Names: ";
+    for (std::vector<std::string>::const_iterator it = server_names.begin(); it != server_names.end(); ++it)
+    {
+        std::cout << *it << " ";
+    }
+    std::cout << std::endl;
+    std::cout << "Main Location: " << std::endl;
+    main_location.printLocation();
+    std::cout << "Locations: " << std::endl;
+    for (std::map<std::string, Location, LocationComparator>::const_iterator it = locations.begin(); it != locations.end(); ++it)
+    {
+        std::cout << "Key: " << it->first << std::endl;
+        it->second.printLocation();
+    }
+    std::cout << "***************** Config End *****************" << std::endl;
 }

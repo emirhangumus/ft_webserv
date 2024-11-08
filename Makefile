@@ -4,7 +4,7 @@ INCS_DIR = incs
 OBJ_DIR = obj
 
 # Source files and corresponding object files
-SRCS = $(SRCS_DIR)/main.cpp $(SRCS_DIR)/ConfigParser.cpp $(SRCS_DIR)/Config.cpp $(SRCS_DIR)/Utils.cpp $(SRCS_DIR)/Location.cpp $(SRCS_DIR)/Server.cpp $(SRCS_DIR)/RequestParser.cpp $(SRCS_DIR)/ErrorResponse.cpp
+SRCS = $(SRCS_DIR)/main.cpp $(SRCS_DIR)/ConfigParser.cpp $(SRCS_DIR)/Config.cpp $(SRCS_DIR)/Utils.cpp $(SRCS_DIR)/Location.cpp $(SRCS_DIR)/Server.cpp $(SRCS_DIR)/RequestParser.cpp $(SRCS_DIR)/ErrorResponse.cpp $(SRCS_DIR)/CGIRunner.cpp
 OBJS = $(SRCS:$(SRCS_DIR)/%.cpp=$(OBJ_DIR)/$(SRCS_DIR)/%.o)
 
 # Project name
@@ -12,7 +12,7 @@ NAME = webserv
 
 # Compiler and flags
 CC = c++
-CFLAGS = -Wall -Wextra -Werror -std=c++98 -g
+CFLAGS = -std=c++98 -g
 INCLUDES = -I$(INCS_DIR)
 
 # Build targets
@@ -47,5 +47,11 @@ debug: re
 # ASan target with address sanitizer enabled
 asan: CFLAGS += -fsanitize=address
 asan: re
+
+siege: all
+	siege -b -t10S http://localhost:8082
+
+run: all
+	./webserv confs/default.conf
 
 .PHONY: all clean fclean re debug asan

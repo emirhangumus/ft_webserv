@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include <map>
 #include "Utils.hpp"
 
 class Location
@@ -15,9 +16,9 @@ public:
     void setRoot(const std::string &root);
     void setIndex(const std::string &index);
     void setAutoindex(const std::string &autoindex);
-    void setClientMaxBodySize(const std::string &client_max_body_size);
+    void setClientMaxBodySize(long long client_max_body_size);
     void setAllowMethods(const std::vector<std::string> allow_methods);
-    void setCgiPath(const std::string &cgi_path);
+    void setCgiParams(const std::map<std::string, std::string> &cgi_params);
     void setErrorPage(const std::string &error_page);
     void setReturn(const std::string &return_);
     void setTryFiles(const std::string &try_files);
@@ -26,9 +27,9 @@ public:
     std::string getRoot() const { return root; }
     std::string getIndex() const { return index; }
     std::string getAutoindex() const { return autoindex; }
-    std::string getClientMaxBodySize() const { return client_max_body_size; }
+    long long getClientMaxBodySize() const { return client_max_body_size; }
     std::vector<std::string> getAllowMethods() const { return allow_methods; }
-    std::string getCgiPath() const { return cgi_path; }
+    std::map<std::string, std::string> getCgiParams() const { return cgi_params; }
     std::string getErrorPage() const { return error_page; }
     std::string getReturn() const { return return_; }
     std::string getTryFiles() const { return try_files; }
@@ -42,9 +43,9 @@ private:
     std::string autoindex;
     std::string return_;
     std::string try_files;
-    std::string client_max_body_size;
+    long long client_max_body_size;
     std::vector<std::string> allow_methods;
-    std::string cgi_path;
+    std::map<std::string, std::string> cgi_params;
     std::string error_page;
 };
 
