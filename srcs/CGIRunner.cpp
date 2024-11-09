@@ -100,7 +100,7 @@ SRet<std::string> CGIRunner::runCGI(const std::string &_path, const std::map<std
     std::vector<std::string> requestURIandScriptName = pathToRequestURIandScriptName(_path);
     
     // Prepare environment variables
-    std::string contentLength = "CONTENT_LENGTH=" + std::to_string(_body.length());
+    std::string contentLength = "CONTENT_LENGTH=" + size_tToString(_body.length());
     std::string contentType = "CONTENT_TYPE=" + _headers.at("Content-Type");
     
     // std::cout << "body: " << _body << std::endl;

@@ -12,7 +12,7 @@ NAME = webserv
 
 # Compiler and flags
 CC = c++
-CFLAGS = #-Wall -Wextra -Werror -std=c++98 -g
+CFLAGS = -Wall -Wextra -Werror -std=c++98 -g
 INCLUDES = -I$(INCS_DIR)
 
 # Build targets
@@ -49,7 +49,7 @@ asan: CFLAGS += -fsanitize=address
 asan: re
 
 siege: all
-	siege -b -t3S http://localhost:8083
+	siege -b -t3S http://localhost:8082
 
 run: all
 	./webserv confs/default.conf

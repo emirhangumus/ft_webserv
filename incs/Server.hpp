@@ -21,7 +21,6 @@ public:
     Server();
     ~Server();
 
-    void start(ConfigParser config);
     void processConnections(ConfigParser config);
     bool acceptNewConnectionsIfAvailable(std::vector<pollfd> &pollfds, int i, ConfigParser config);
     void closeConnection(int fd, fd_set* master_readfds, fd_set* master_writefds);
@@ -34,6 +33,7 @@ private:
     CacheManager cacheManager;
     int _maxFd;
     std::vector<int> _listeners;
+    std::map<int, std::string> _clientData;
 };
 
 #endif

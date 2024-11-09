@@ -37,45 +37,6 @@ int Server::setNonBlock(int sockfd) {
     return fcntl(sockfd, F_SETFL, flags | O_NONBLOCK);
 }
 
-
-void Server::start(ConfigParser config)
-{
-	std::vector<struct sockaddr_in>::iterator	so;
-	std::vector<unsigned int> allPorts = config.getAllPorts();
-
-	totalPortSize = allPorts.size();
-    std::cout << "totalPortSize: " << totalPortSize << std::endl;
-	allSockets.resize(totalPortSize);
-	int	i = 0;
-	for (so = allSockets.begin(); so != allSockets.end(); so++, i++) //configure the sockets
-	{
-		(*so).sin_family = AF_INET;
-		(*so).sin_port = htons(allPorts[i]);
-		(*so).sin_addr.s_addr = INADDR_ANY;
-		bzero(&((*so).sin_zero), 8);
-	}
-	const int	enable = 1;
-	fds.resize(allSockets.size());
-	std::vector<int>::iterator	fd;
-	for (fd = fds.begin(); fd != fds.end(); fd++) //setup the sockets and make the fds non blocking
-	{
-		(*fd) = socket(AF_INET, SOCK_STREAM, 0); //IPv4, TCP
-		if (*fd < 0)
-            throw std::runtime_error("Socket error");
-		setsockopt(*fd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int));
-		setNonBlock(*fd);
-	}
-	this->_maxFd = *std::max_element(fds.begin(), fds.end());
-	for (fd = fds.begin(), so = allSockets.begin(); fd != fds.end(); fd++, so++) //bind the fds to the sockets and put them in listening mode
-	{
-		if (bind(*fd, (struct sockaddr *)&(*so), sizeof(struct sockaddr_in)))
-			throw std::runtime_error("Bind error");
-		if (listen(*fd, 25)) //backlog is the length of the queue for the upcoming connections
-            throw std::runtime_error("Listen error");
-    }
-	processConnections(config);
-}
-
 int Server::createSocket(unsigned int port) {
     // Create socket
     int sockfd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
@@ -174,8 +135,9 @@ void Server::processConnections(ConfigParser config)
     FD_ZERO(&write_fds);
 
     // Add the listener to the master set
-    for (const auto& port : allPorts) {
-        int listener = createSocket(port);
+    for (std::vector<unsigned int>::const_iterator it = allPorts.begin(); it != allPorts.end(); it++)
+    {
+        int listener = createSocket(*it);
         if (listener < 0) {
             continue;
         }
@@ -221,33 +183,47 @@ void Server::processConnections(ConfigParser config)
                             _maxFd = newfd;
                         }
                         std::cout << "New connection on socket " << newfd << std::endl;
+                        _clientData[fd] = "";
                     }
                 } else {
                     // Handle data from a client
                     char buf[4096];
                     ssize_t nbytes = recv(fd, buf, sizeof(buf), 0);
                     
-                    if (nbytes <= 0) {
+                    if (nbytes < 0) {
                         // Got error or connection closed
+                        _clientData[fd].append(buf, nbytes);
                         if (nbytes < 0) {
                             std::cerr << "Recv error: " << strerror(errno) << std::endl;
                         }
                         closeConnection(fd, &master_readfds, &master_writefds);
                     } else {
                         // Process received data here
+                        _clientData[fd].append(buf, nbytes);
+                        std::cout << "Received " << nbytes << " bytes from client " << fd << std::endl;
                         // For now, we'll just echo back
                         FD_SET(fd, &master_writefds);  // Mark for writing
                     }
+                    std::fill(buf, buf + sizeof(buf), 0);
                 }
             }
             
             if (FD_ISSET(fd, &write_fds)) {
+                std::string response;
+                RequestParser rp = RequestParser(config);
+                SRet<bool> ret = rp.parseRequest(_clientData[fd]);
+                if (ret.status == EXIT_FAILURE) {
+                    std::cout << "Error parsing request: " << ret.err << std::endl;
+                    response = ErrorResponse::getErrorResponse(400);
+                }
+                else {
+                    SRet<std::string> realResponse = rp.prepareResponse(cacheManager);
+                    if (realResponse.status == EXIT_FAILURE)
+                        response = realResponse.err;
+                    else
+                        response = realResponse.data;
+                }
                 // Handle writing to client
-                std::string response = "HTTP/1.1 200 OK\r\n"
-                                     "Content-Type: text/plain\r\n"
-                                     "Content-Length: 12\r\n"
-                                     "\r\n"
-                                     "Hello World!";
                 
                 ssize_t bytesWritten = send(fd, response.c_str(), response.size(), 0);
                 if (bytesWritten <= 0) {
@@ -257,7 +233,7 @@ void Server::processConnections(ConfigParser config)
                     closeConnection(fd, &master_readfds, &master_writefds);
                 } else {
                     // Successfully wrote data, remove from write set
-                    FD_CLR(fd, &master_writefds);
+                    closeConnection(fd, &master_readfds, &master_writefds);
                 }
             }
         }
@@ -269,7 +245,9 @@ void Server::closeConnection(int fd, fd_set* master_readfds, fd_set* master_writ
     close(fd);
     FD_CLR(fd, master_readfds);
     FD_CLR(fd, master_writefds);
+    _clientData.erase(fd);
 }
+
 bool Server::acceptNewConnectionsIfAvailable(std::vector<pollfd> &pollfds, int i, ConfigParser config) {
 	struct pollfd tmp;
 	struct sockaddr_in clientSocket;

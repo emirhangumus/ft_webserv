@@ -21,7 +21,7 @@ int main(int ac, char **av)
 
     Server server = Server();
 
-    server.start(parser);
+    server.processConnections(parser);
 
     return 0;
 }

@@ -26,23 +26,26 @@ RequestParser::~RequestParser()
 
 SRet<bool> RequestParser::parseRequest(std::string request)
 {
+    std::cout << "\033[1;32m" << "****************************************" << "\033[0m" << std::endl;
+    std::cout << "\033[1;32m" << request << "\033[0m" << std::endl;
+
     size_t endOfRequestLine = request.find("\r\n");
     if (endOfRequestLine == std::string::npos)
-        return SRet<bool>(EXIT_FAILURE, false, "Invalid request");
+        return SRet<bool>(EXIT_FAILURE, false, "Invalid request 1");
     SRet<bool> requestLineRet = parseRequestLine(request.substr(0, endOfRequestLine));
     if (requestLineRet.status == EXIT_FAILURE)
         return requestLineRet;
 
     size_t endOfHeaders = request.find("\r\n\r\n");
     if (endOfHeaders == std::string::npos)
-        return SRet<bool>(EXIT_FAILURE, false, "Invalid request");
+        return SRet<bool>(EXIT_FAILURE, false, "Invalid request 2");
     SRet<bool> headersRet = parseHeaders(request.substr(endOfRequestLine + 2, endOfHeaders - endOfRequestLine - 2));
     if (headersRet.status == EXIT_FAILURE)
         return headersRet;
 
     size_t endOfBody = request.find("\r\n\r\n");
     if (endOfBody == std::string::npos)
-        return SRet<bool>(EXIT_FAILURE, false, "Invalid request");
+        return SRet<bool>(EXIT_FAILURE, false, "Invalid request 3");
     SRet<bool> bodyRet = parseBody(request.substr(endOfHeaders + 4));
     if (bodyRet.status == EXIT_FAILURE)
         return bodyRet;
