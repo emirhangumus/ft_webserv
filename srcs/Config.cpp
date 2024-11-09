@@ -30,7 +30,6 @@ void Config::fillConfig(std::string listen, std::vector<std::string> server_name
         locations[it->first].setIndex(locations[it->first].getIndex() == "" ? main_location.getIndex() : locations[it->first].getIndex());
         locations[it->first].setReturn(locations[it->first].getReturn().first == -1 ? main_location.getReturn() : locations[it->first].getReturn());
         locations[it->first].setRoot(locations[it->first].getRoot() == "" ? main_location.getRoot() : locations[it->first].getRoot());
-        locations[it->first].setTryFiles(locations[it->first].getTryFiles() == "" ? main_location.getTryFiles() : locations[it->first].getTryFiles());
 
         std::vector<std::string> allowMethods = locations[it->first].getAllowMethods();
         if (allowMethods.empty()) {
@@ -48,7 +47,6 @@ void Config::fillConfig(std::string listen, std::vector<std::string> server_name
     main_location.setIndex(main_location.getIndex() == "" ? "index.html" : main_location.getIndex());
     main_location.setReturn(main_location.getReturn().first == -1 ? std::pair<int, std::string>(-1, "") : main_location.getReturn());
     main_location.setRoot(main_location.getRoot() == "" ? "" : main_location.getRoot());
-    main_location.setTryFiles(main_location.getTryFiles() == "" ? "" : main_location.getTryFiles());
 
     std::vector<std::string> DEFAULT_ALLOW_METHODS;
     DEFAULT_ALLOW_METHODS.push_back("GET");
@@ -146,7 +144,6 @@ Location Config::getCorrentLocation(std::string path) {
 
     // if non of the locations match, look if there is a prefix location
     for (it = locations.begin(); it != locations.end(); it++) {
-        std::cout << path << " " << it->first << std::endl;
         if (matchLocation(path, LocationConfig(PREFIX, it->first))) {
             return it->second;
         }
@@ -164,19 +161,19 @@ Location Config::getCorrentLocation(std::string path) {
 void Config::printConfig() const
 {
     std::cout << "***************** Config Start *****************" << std::endl;
-    std::cout << "Listen: " << listen.first << ":" << listen.second << std::endl;
-    std::cout << "Server Names: ";
+    std::cout << "― Listen: " << listen.first << ":" << listen.second << std::endl;
+    std::cout << "― Server Names: ";
     for (std::vector<std::string>::const_iterator it = server_names.begin(); it != server_names.end(); ++it)
     {
-        std::cout << *it << " ";
+        std::cout << "― " << *it << " ";
     }
     std::cout << std::endl;
-    std::cout << "Main Location: " << std::endl;
+    std::cout << "― Main Location: " << std::endl;
     main_location.printLocation();
-    std::cout << "Locations: " << std::endl;
+    std::cout << "― Locations: " << std::endl;
     for (std::map<std::string, Location, LocationComparator>::const_iterator it = locations.begin(); it != locations.end(); ++it)
     {
-        std::cout << "Key: " << it->first << std::endl;
+        std::cout << "― Key: " << it->first << std::endl;
         it->second.printLocation();
     }
     std::cout << "***************** Config End *****************" << std::endl;

@@ -68,39 +68,32 @@ void Location::setErrorPage(const std::string &error_page)
 
 void Location::setReturn(const std::pair<int, std::string>& return_)
 {
-    std::cout << "Return: " << return_.first << " " << return_.second << std::endl;
     if ((return_.first < 100 || return_.first > 599) && return_.first != -1)
         throw std::runtime_error("Error: invalid config file: return code must be between 100 and 599");
     this->return_ = return_;
 } 
 
-void Location::setTryFiles(const std::string &try_files)
-{
-    this->try_files = try_files;
-}
-
 void Location::printLocation() const
 {
-    std::cout << "Location: " << this->path << std::endl;
-    std::cout << "Root: " << this->root << std::endl;
-    std::cout << "Index: " << this->index << std::endl;
-    std::cout << "Autoindex: " << this->autoindex << std::endl;
-    std::cout << "Client Max Body Size: " << this->client_max_body_size << std::endl;
-    std::cout << "Allow Methods: ";
+    std::cout << "―― Location: " << this->path << std::endl;
+    std::cout << "―― Root: " << this->root << std::endl;
+    std::cout << "―― Index: " << this->index << std::endl;
+    std::cout << "―― Autoindex: " << this->autoindex << std::endl;
+    std::cout << "―― Client Max Body Size: " << this->client_max_body_size << std::endl;
+    std::cout << "―― Allow Methods: ";
     for (std::vector<std::string>::const_iterator it = this->allow_methods.begin(); it != this->allow_methods.end(); ++it)
     {
-        std::cout << *it << " ";
+        std::cout << "―― " << *it << " ";
     }
     std::cout << std::endl;
-    std::cout << "Error Page: " << this->error_page << std::endl;
-    std::cout << "Return: " << this->return_.first << " " << this->return_.second << std::endl;
-    std::cout << "Try Files: " << this->try_files << std::endl;
+    std::cout << "―― Error Page: " << this->error_page << std::endl;
+    std::cout << "―― Return: " << this->return_.first << " " << this->return_.second << std::endl;
 
 
-    std::cout << "Cgi Params: " << std::endl;
+    std::cout << "―― Cgi Params: " << std::endl;
     for (std::map<std::string, std::string>::const_iterator it = this->cgi_params.begin(); it != this->cgi_params.end(); ++it)
     {
-        std::cout << it->first << " = " << it->second << std::endl;
+        std::cout << "―― " << it->first << " = " << it->second << std::endl;
     }
 }
 

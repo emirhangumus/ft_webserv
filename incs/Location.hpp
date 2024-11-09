@@ -21,7 +21,6 @@ public:
     void setCgiParams(const std::map<std::string, std::string> &cgi_params);
     void setErrorPage(const std::string &error_page);
     void setReturn(const std::pair<int, std::string>& return_);
-    void setTryFiles(const std::string &try_files);
 
     std::string getPath() const { return path; }
     std::string getRoot() const { return root; }
@@ -32,7 +31,6 @@ public:
     std::map<std::string, std::string> getCgiParams() const { return cgi_params; }
     std::string getErrorPage() const { return error_page; }
     std::pair<int, std::string> getReturn() const { return return_; }
-    std::string getTryFiles() const { return try_files; }
 
     void printLocation() const;
 
@@ -42,7 +40,6 @@ private:
     std::string index;
     std::string autoindex;
     std::pair<int, std::string> return_;
-    std::string try_files;
     long long client_max_body_size;
     std::vector<std::string> allow_methods;
     std::map<std::string, std::string> cgi_params;

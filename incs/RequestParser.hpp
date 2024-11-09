@@ -3,6 +3,7 @@
 
 #include "Utils.hpp"
 #include "ConfigParser.hpp"
+#include "CacheManager.hpp"
 #include <string>
 #include <iostream>
 #include <map>
@@ -14,7 +15,7 @@ public:
     RequestParser(ConfigParser config);
     ~RequestParser();
     SRet<bool> parseRequest(std::string request);
-    SRet<std::string> prepareResponse();
+    SRet<std::string> prepareResponse(CacheManager& cache);
 
     std::string getMethod() { return _method; }
     std::string getUri() { return _uri; }

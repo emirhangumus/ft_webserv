@@ -16,7 +16,6 @@ ConfigParser::ConfigParser()
     _VALID_DIRECTIVES.push_back("location");
     _VALID_DIRECTIVES.push_back("root");
     _VALID_DIRECTIVES.push_back("index");
-    _VALID_DIRECTIVES.push_back("try_files");
     _VALID_DIRECTIVES.push_back("autoindex");
     _VALID_DIRECTIVES.push_back("return");
     _VALID_DIRECTIVES.push_back("client_max_body_size");
@@ -34,8 +33,8 @@ ConfigParser::~ConfigParser()
 Config ConfigParser::get(const std::string &key) const
 {
     // print all map keys
-    for (std::map<std::string, Config>::const_iterator it = m_config.begin(); it != m_config.end(); it++)
-        std::cout << it->first << std::endl;
+    // for (std::map<std::string, Config>::const_iterator it = m_config.begin(); it != m_config.end(); it++)
+    //     std::cout << it->first << std::endl;
 
     // check if key exists
     std::map<std::string, Config>::const_iterator it = m_config.find(key);
@@ -221,8 +220,6 @@ SRet<std::map<std::string, Config> > ConfigParser::parseConfigFile(const std::st
                     main_location.setRoot(value);
                 } else if (directive == "index") {
                     main_location.setIndex(value);
-                } else if (directive == "try_files") {
-                    main_location.setTryFiles(value);
                 } else if (directive == "autoindex") {
                     main_location.setAutoindex(value);
                 } else if (directive == "return") {
@@ -234,6 +231,8 @@ SRet<std::map<std::string, Config> > ConfigParser::parseConfigFile(const std::st
                     std::pair<int, std::string> return_ = std::make_pair(stringtoui(return_values[0]), return_values[1]);
                     main_location.setReturn(return_);
                 } else if (directive == "client_max_body_size") {
+                    if (!isValidConvertableSizeString(value))
+                        return SRet<std::map<std::string, Config> >(EXIT_FAILURE, config, "Error: invalid config file: client_max_body_size directive must have a valid size string");
                     main_location.setClientMaxBodySize(convertSizeToBytes(value));
                 } else if (directive == "allow_methods") {
                     main_location.setAllowMethods(split(value, ' '));
@@ -248,8 +247,6 @@ SRet<std::map<std::string, Config> > ConfigParser::parseConfigFile(const std::st
                     locations[current_location_key].setRoot(value);
                 } else if (directive == "index") {
                     locations[current_location_key].setIndex(value);
-                } else if (directive == "try_files") {
-                    locations[current_location_key].setTryFiles(value);
                 } else if (directive == "autoindex") {
                     locations[current_location_key].setAutoindex(value);
                 } else if (directive == "return") {
@@ -261,59 +258,20 @@ SRet<std::map<std::string, Config> > ConfigParser::parseConfigFile(const std::st
                     std::pair<int, std::string> return_ = std::make_pair(stringtoi(return_values[0]), return_values[1]);
                     locations[current_location_key].setReturn(return_);
                 } else if (directive == "client_max_body_size") {
+                    if (!isValidConvertableSizeString(value))
+                        return SRet<std::map<std::string, Config> >(EXIT_FAILURE, config, "Error: invalid config file: client_max_body_size directive must have a valid size string");
                     locations[current_location_key].setClientMaxBodySize(convertSizeToBytes(value));
                 } else if (directive == "allow_methods") {
                     locations[current_location_key].setAllowMethods(split(value, ' '));
                 } else if (directive == "cgi_params") {
                     std::map<std::string, std::string> params = parseCgiParams(value);
                     locations[current_location_key].setCgiParams(params);
-                    
-                    // // Debug printing
-                    // std::cout << "Original map contents:" << std::endl;
-                    // for (std::map<std::string, std::string>::const_iterator it = params.begin(); 
-                    //     it != params.end(); ++it) {
-                    //     std::cout << it->first << " = " << it->second << std::endl;
-                    // }
-                    
-                    std::cout << "\nStored map contents:" << std::endl;
-                    const std::map<std::string, std::string>& stored_params = 
-                        locations[current_location_key].getCgiParams();
-                    for (std::map<std::string, std::string>::const_iterator it = stored_params.begin(); 
-                        it != stored_params.end(); ++it) {
-                        std::cout << it->first << " = " << it->second << std::endl;
-                    }
                 } else if (directive == "error_page") {
                     locations[current_location_key].setErrorPage(value);
                 }
             }
         }
     }
-
-    // print all locations's all cgi_params via Config
-    // for (std::map<std::string, Config>::const_iterator config_it = config.begin(); 
-    //          config_it != config.end(); ++config_it) 
-    //     {
-    //         const std::map<std::string, Location, LocationComparator>& locations = 
-    //             config_it->second.getLocations();
-            
-    //         // Iterate over locations
-    //         for (std::map<std::string, Location, LocationComparator>::const_iterator loc_it = locations.begin(); 
-    //              loc_it != locations.end(); ++loc_it) 
-    //         {
-    //             const std::map<std::string, std::string>& cgi_params = 
-    //                 loc_it->second.getCgiParams();
-                
-    //             // Iterate over CGI parameters
-    //             for (std::map<std::string, std::string>::const_iterator param_it = cgi_params.begin(); 
-    //                  param_it != cgi_params.end(); ++param_it) 
-    //             {
-    //                 std::cout << "\033[1;34m" << param_it->first << " = " 
-    //                          << param_it->second << "\033[0m" << std::endl;
-    //             }
-    //         }
-    //     }
-    
-
 
     if (deep_level != 0) {
         return SRet<std::map<std::string, Config> >(EXIT_FAILURE, config, "Error: invalid config file: too many '{'");
@@ -327,6 +285,7 @@ std::vector<unsigned int> ConfigParser::getAllPorts() const
     std::vector<unsigned int> ports;
     for (std::map<std::string, Config>::const_iterator it = m_config.begin(); it != m_config.end(); it++)
         ports.push_back(it->second.getListen().second);
+    // ports.push_back(80);
     return ports;
 }
 
@@ -334,12 +293,10 @@ Config ConfigParser::getServerConfig(const std::string &host) const
 {
     for (std::map<std::string, Config>::const_iterator it = m_config.begin(); it != m_config.end(); it++)
     {
-        std::cout << "Now checking: " << it->first << " vs " << host << std::endl;
+        std::cout << "Checking host: " << it->first << std::endl;
+        std::cout << "Checking host: " << host << std::endl;
         if (it->first == host)
-        {
-            std::cout << "Found: " << it->first << std::endl;
             return it->second;
-        }
     }
     return defaultConfig;
 }

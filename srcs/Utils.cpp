@@ -2,6 +2,7 @@
 #include <sstream>
 #include <map>
 #include <limits>
+#include <iostream>
 
 std::string trim(const std::string &str)
 {
@@ -113,6 +114,7 @@ std::string size_tToString(size_t value)
 
 long long convertSizeToBytes(const std::string& sizeStr) {
     std::map<std::string, long long> unitMap;
+    unitMap["BB"] = 1LL;
     unitMap["KB"] = 1024LL;
     unitMap["MB"] = 1024LL * 1024;
     unitMap["GB"] = 1024LL * 1024 * 1024;
@@ -142,16 +144,32 @@ long long convertSizeToBytes(const std::string& sizeStr) {
     return static_cast<long long>(number * it->second);
 }
 
-bool compareSizeTandLongLong(size_t sizeVal, long long longVal) {
-    // Check if longVal is negative
-    if (longVal < 0) {
+bool isValidConvertableSizeString(const std::string& str)
+{
+    std::vector<std::string> unitList;
+    unitList.push_back("BB");
+    unitList.push_back("KB");
+    unitList.push_back("MB");
+    unitList.push_back("GB");
+    unitList.push_back("TB");
+
+    // it have to in this format: [0-9]+[.][0-9]+[B|K|M|G|T]
+    size_t i = 0;
+    while (i < str.size() && (isdigit(str[i]) || str[i] == '.')) ++i;
+    if (i == 0 || i == str.size()) {
         return false;
     }
 
-    // Convert longVal to size_t if within the range of size_t
-    if (static_cast<unsigned long long>(longVal) > std::numeric_limits<size_t>::max()) {
-        return false;
+    std::string unit = str.substr(i);
+    for (size_t j = 0; j < unit.size(); ++j) {
+        unit[j] = toupper(unit[j]);
     }
 
-    return sizeVal == static_cast<size_t>(longVal);
+    for (size_t j = 0; j < unitList.size(); ++j) {
+        if (unit == unitList[j]) {
+            return true;
+        }
+    }
+
+    return false;
 }

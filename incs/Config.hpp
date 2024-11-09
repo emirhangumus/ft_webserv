@@ -8,7 +8,7 @@
 #include <algorithm>
 
 struct LocationComparator {
-    bool operator()(const std::string& lhs, const std::string& rhs) const {
+    bool operator() (const std::string& lhs, const std::string& rhs) const {
         // Count '/' characters in lhs and rhs
         int lhsSlashCount = std::count(lhs.begin(), lhs.end(), '/');
         int rhsSlashCount = std::count(rhs.begin(), rhs.end(), '/');

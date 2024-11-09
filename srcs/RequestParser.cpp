@@ -1,16 +1,17 @@
 #include "Utils.hpp"
 #include "RequestParser.hpp"
 #include "ErrorResponse.hpp"
+#include "CacheManager.hpp"
 #include "CGIRunner.hpp"
 #include <stdlib.h>
 #include <iostream>
 #include <fstream>
 #include <sys/stat.h>
 #include <dirent.h>
-
 #include <cstring>
 #include <netdb.h>
 #include <arpa/inet.h>
+#include <sstream>
 
 RequestParser::RequestParser(ConfigParser config)
 {
@@ -46,53 +47,45 @@ SRet<bool> RequestParser::parseRequest(std::string request)
     if (bodyRet.status == EXIT_FAILURE)
         return bodyRet;
 
-    // // PRINT ALL THE PARSED DATA
-    // std::cout << "Method: " << _method << std::endl;
-    // std::cout << "URI: " << _uri << std::endl;
-    // std::cout << "Path: " << _path << std::endl;
-    // std::cout << "HTTP Version: " << _httpVersion << std::endl;
-    // std::cout << "Body: " << _body << std::endl;
-    // std::map<std::string, std::string>::iterator it;
-    // for (it = _headers.begin(); it != _headers.end(); it++)
-    // {
-    //     std::cout << "Header: " << it->first << " = " << it->second << std::endl;
-    // }
-    // for (it = _params.begin(); it != _params.end(); it++)
-    // {
-    //     std::cout << "Param: " << it->first << " = " << it->second << std::endl;
-    // }
-    // for (it = _cookies.begin(); it != _cookies.end(); it++)
-    // {
-    //     std::cout << "Cookie: " << it->first << " = " << it->second << std::endl;
-    // }
-
     _isParsed = true;
     return SRet<bool>(EXIT_SUCCESS, true);
 }
 
 SRet<bool> RequestParser::parseRequestLine(std::string requestLine)
 {
-    // if there is not two spaces in the request line, it is invalid
+    std::vector<std::string> ALLOWED_METHODS;
+    ALLOWED_METHODS.push_back("GET");
+    ALLOWED_METHODS.push_back("POST");
+    ALLOWED_METHODS.push_back("DELETE");
+
+    if (requestLine.find('\0') != std::string::npos || requestLine.find_first_of("\r\n") != std::string::npos)
+        return SRet<bool>(EXIT_FAILURE, false, "Invalid characters in request line");
+
     if (countThis(requestLine, ' ') != 2)
-        return SRet<bool>(EXIT_FAILURE, false, "Invalid request line");
+        return SRet<bool>(EXIT_FAILURE, false, "Invalid request line: wrong number of spaces");
 
     size_t firstSpace = requestLine.find(" ");
-    if (firstSpace == std::string::npos)
-        return SRet<bool>(EXIT_FAILURE, false, "Invalid request line");
+    if (firstSpace == std::string::npos || firstSpace == 0)
+        return SRet<bool>(EXIT_FAILURE, false, "Invalid request line: no method");
+
     _method = requestLine.substr(0, firstSpace);
 
-    // TODO: CHECK THE CONFIG AND SEE IF THE METHOD IS ALLOWED
+    if (std::find(ALLOWED_METHODS.begin(), ALLOWED_METHODS.end(), _method) == ALLOWED_METHODS.end())
+        return SRet<bool>(EXIT_FAILURE, false, "Invalid method");
 
     size_t secondSpace = requestLine.find(" ", firstSpace + 1);
     if (secondSpace == std::string::npos)
-        return SRet<bool>(EXIT_FAILURE, false, "Invalid request line");
+        return SRet<bool>(EXIT_FAILURE, false, "Invalid request line: missing URI");
 
     _uri = requestLine.substr(firstSpace + 1, secondSpace - firstSpace - 1);
+
+    if (_uri.find("../") != std::string::npos)
+        return SRet<bool>(EXIT_FAILURE, false, "Invalid URI: path traversal attempt");
+
     size_t questionMark = _uri.find("?");
     if (questionMark == std::string::npos)
     {
         _path = _uri;
-        // normalize the path. example: "/path/to/file/" -> "/path/to/file" or "/path/to/file////" -> "/path/to/file"
         _path = _path.substr(0, _path.find_last_not_of("/") + 1);
     }
     else
@@ -102,23 +95,44 @@ SRet<bool> RequestParser::parseRequestLine(std::string requestLine)
         if (paramsRet.status == EXIT_FAILURE)
             return paramsRet;
     }
+
     size_t httpVersionStart = requestLine.find("HTTP/");
     if (httpVersionStart == std::string::npos)
-        return SRet<bool>(EXIT_FAILURE, false, "Invalid request line");
+        return SRet<bool>(EXIT_FAILURE, false, "Invalid request line: missing HTTP version");
+
     _httpVersion = requestLine.substr(httpVersionStart + 5);
+    if (_httpVersion != "1.0" && _httpVersion != "1.1")
+        return SRet<bool>(EXIT_FAILURE, false, "Invalid HTTP version");
+
     return SRet<bool>(EXIT_SUCCESS, true);
 }
 
 SRet<bool> RequestParser::parseHeaders(std::string headers)
 {
     std::vector<std::string> headerLines = split(headers, '\n');
+
     for (size_t i = 0; i < headerLines.size(); i++)
     {
+
         size_t colonPos = headerLines[i].find(":");
-        if (colonPos == std::string::npos)
-            return SRet<bool>(EXIT_FAILURE, false, "Invalid header line");
+        if (colonPos == std::string::npos || colonPos == 0 || colonPos == headerLines[i].length() - 1)
+            return SRet<bool>(EXIT_FAILURE, false, "Invalid header line: missing colon or empty key/value");
+
         std::string key = headerLines[i].substr(0, colonPos);
-        std::string value = headerLines[i].substr(colonPos + 1);
+        std::string value = trim(headerLines[i].substr(colonPos + 1));
+        // // Print key values in color Blue
+        // std::cout << "\033[1;34m" << headerLines[i] << "\033[0m" << std::endl; 
+        // std::cout << "\033[1;34m" << key << "\033[0m" << std::endl;
+        // std::cout << "\033[1;34m" << value << "\033[0m" << std::endl;
+        if (key.find_first_of("\0\r\n") != std::string::npos || value.find_first_of("\0\r\n") != std::string::npos)
+            return SRet<bool>(EXIT_FAILURE, false, "Invalid header line: control characters detected");
+
+        if (key.find("HTTP_") == 0 || key.find("X-") == 0 || key.find("Set-Cookie") != std::string::npos)
+            return SRet<bool>(EXIT_FAILURE, false, "Invalid header name: header injection attempt detected");
+
+        if (value.find("\r") != std::string::npos || value.find("\n") != std::string::npos)
+            return SRet<bool>(EXIT_FAILURE, false, "Invalid header value: CRLF detected");
+
         _headers[key] = value;
 
         if (key == "Cookie")
@@ -128,25 +142,64 @@ SRet<bool> RequestParser::parseHeaders(std::string headers)
                 return cookiesRet;
         }
     }
+
     return SRet<bool>(EXIT_SUCCESS, true);
 }
 
 SRet<bool> RequestParser::parseBody(std::string body)
 {
+    // if (body.find('\0') != std::string::npos)
+    //     return SRet<bool>(EXIT_FAILURE, false, "Body contains invalid characters");
+
     _body = body;
     return SRet<bool>(EXIT_SUCCESS, true);
 }
+std::string urlDecode(const std::string &str)
+{
+    std::string decoded;
+    size_t len = str.length();
+    for (size_t i = 0; i < len; ++i)
+    {
+        if (str[i] == '%' && i + 2 < len)
+        {
 
+            int value = 0;
+            std::stringstream hexStream;
+            hexStream << str[i + 1] << str[i + 2];
+            hexStream >> std::hex >> value;
+            decoded.push_back(static_cast<char>(value));
+            i += 2;
+        }
+        else if (str[i] == '+')
+            decoded.push_back(' ');
+        else
+            decoded.push_back(str[i]);
+    }
+    return decoded;
+}
 SRet<bool> RequestParser::parseParams(std::string params)
 {
+
+    const size_t MAX_PARAM_SIZE = 1024;
+    if (params.size() > MAX_PARAM_SIZE)
+        return SRet<bool>(EXIT_FAILURE, false, "Request parameters too large");
+
     std::vector<std::string> paramPairs = split(params, '&');
     for (size_t i = 0; i < paramPairs.size(); i++)
     {
         size_t equalPos = paramPairs[i].find("=");
-        if (equalPos == std::string::npos)
-            return SRet<bool>(EXIT_FAILURE, false, "Invalid param pair");
+        if (equalPos == std::string::npos || equalPos == 0 || equalPos == paramPairs[i].length() - 1)
+            return SRet<bool>(EXIT_FAILURE, false, "Invalid param pair: missing key or value");
+
         std::string key = paramPairs[i].substr(0, equalPos);
         std::string value = paramPairs[i].substr(equalPos + 1);
+
+        if (key.find_first_of("\0\r\n") != std::string::npos || value.find_first_of("\0\r\n") != std::string::npos)
+            return SRet<bool>(EXIT_FAILURE, false, "Invalid param pair: control characters detected");
+
+        key = urlDecode(key);
+        value = urlDecode(value);
+
         _params[key] = value;
     }
     return SRet<bool>(EXIT_SUCCESS, true);
@@ -154,135 +207,172 @@ SRet<bool> RequestParser::parseParams(std::string params)
 
 SRet<bool> RequestParser::parseCookies(std::string cookies)
 {
+
+    const size_t MAX_COOKIE_SIZE = 4096;
+    if (cookies.size() > MAX_COOKIE_SIZE)
+        return SRet<bool>(EXIT_FAILURE, false, "Cookies too large");
+
     std::vector<std::string> cookiePairs = split(cookies, ';');
     for (size_t i = 0; i < cookiePairs.size(); i++)
     {
-        size_t equalPos = cookiePairs[i].find("=");
-        if (equalPos == std::string::npos)
+
+        std::string cookie = trim(cookiePairs[i]);
+
+        size_t equalPos = cookie.find("=");
+        if (equalPos == std::string::npos || equalPos == 0 || equalPos == cookie.length() - 1)
             return SRet<bool>(EXIT_FAILURE, false, "Invalid cookie pair");
-        if (cookiePairs[i][0] != ' ')
-            return SRet<bool>(EXIT_FAILURE, false, "Invalid cookie pair");
-        std::string key = cookiePairs[i].substr(1, equalPos - 1);
-        std::string value = cookiePairs[i].substr(equalPos + 1);
+
+        std::string key = cookie.substr(0, equalPos);
+        std::string value = cookie.substr(equalPos + 1);
+
+        if (key.find_first_of("\0\r\n") != std::string::npos || value.find_first_of("\0\r\n") != std::string::npos)
+            return SRet<bool>(EXIT_FAILURE, false, "Invalid cookie pair: control characters detected");
+
+        key = urlDecode(key);
+        value = urlDecode(value);
+
         _cookies[key] = value;
     }
+
     return SRet<bool>(EXIT_SUCCESS, true);
 }
 
-std::string localhostToIp(const std::string& host)
+std::string localhostToIp(const std::string &host)
 {
-    // Split the host string into hostname and port
+
     size_t colon_pos = host.find(':');
     std::string hostname = host;
     std::string port = "";
-    if (colon_pos != std::string::npos) {
+    if (colon_pos != std::string::npos)
+    {
         hostname = host.substr(0, colon_pos);
         port = host.substr(colon_pos + 1);
     }
 
-    // Set up address info
     struct addrinfo hints, *res;
     memset(&hints, 0, sizeof(hints));
-    hints.ai_family = AF_INET; // IPv4 addresses
+    hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
 
-    // Get address info for the hostname
-    if (getaddrinfo(hostname.c_str(), NULL, &hints, &res) != 0) {
+    if (getaddrinfo(hostname.c_str(), NULL, &hints, &res) != 0)
+    {
         std::cerr << "Error getting address info for " << hostname << std::endl;
         return "";
     }
 
-    // Convert the IP address to a string
     char ip[INET_ADDRSTRLEN];
     struct sockaddr_in *ipv4 = (struct sockaddr_in *)res->ai_addr;
     inet_ntop(AF_INET, &ipv4->sin_addr, ip, sizeof(ip));
 
-    freeaddrinfo(res); // Free the allocated memory
+    freeaddrinfo(res);
 
-    // Append port if it was provided
     std::string result = std::string(ip);
-    if (!port.empty()) {
+    if (!port.empty())
+    {
         result += ":" + port;
     }
 
     return result;
 }
 
-SRet<std::string> RequestParser::prepareResponse()
+std::string removeLocationFromPath(std::string path, std::string location)
 {
-    // check the rules via the config
+    if (path == "")
+        return path;
+    if (path.find(location) == 0)
+    {
+        std::string newPath = path.substr(location.size());
+        if (newPath == "")
+            return "/";
+        if (newPath[0] != '/')
+            newPath = "/" + newPath;
+        return newPath;
+    }
+    if (path[0] != '/')
+        return "/" + path;
+    return path;
+}
 
-    // find the `Host`
+SRet<std::string> RequestParser::prepareResponse(CacheManager &cache)
+{
+
+    std::map<std::string, std::string>::iterator cache_it = _headers.find("Pragma");
+    std::string pragma = "";
+    if (cache_it != _headers.end())
+        pragma = cache_it->second;
+    cache_it = _headers.find("Cache-Control");
+    std::string cacheControl = "";
+    if (cache_it != _headers.end())
+        cacheControl = cache_it->second;
+    if (pragma != "no-cache" && cacheControl != "no-cache")
+    {
+        std::string response = cache.getCache(_uri);
+        if (response != "")
+            return SRet<std::string>(EXIT_SUCCESS, response);
+    }
+
     std::map<std::string, std::string>::iterator it = _headers.find("Host");
-    if (it == _headers.end())
+    if (it == _headers.end()) // Is it should look like this??
         return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(400));
 
-    // find the corrent config
     std::string host = localhostToIp(trim(it->second));
     Config serverConfig = config.getServerConfig(host);
     if (serverConfig.getPort() == 0)
         return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(400));
 
-    serverConfig.printConfig();
-
     Location loc = serverConfig.getCorrentLocation(_path);
 
-    // check the method
     if (std::find(loc.getAllowMethods().begin(), loc.getAllowMethods().end(), _method) == loc.getAllowMethods().end())
         return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(405));
 
-    // check the body size
-    if (loc.getClientMaxBodySize() != -1 && compareSizeTandLongLong(_body.size(), loc.getClientMaxBodySize()))
+    if (loc.getClientMaxBodySize() != -1 && _body.size() > static_cast<size_t>(loc.getClientMaxBodySize()))
         return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(413));
 
-    // is has "return"? if so, redirect
     if (loc.getReturn().first != -1)
     {
         std::pair<int, std::string> return_ = loc.getReturn();
         std::string response = "HTTP/1.1 " + size_tToString(return_.first) + " " + return_.second + "\r\nLocation: " + return_.second + "\r\n\r\n";
+        cache.addCache(_uri, response);
         return SRet<std::string>(EXIT_SUCCESS, response);
     }
 
-    // is it a CGI request?
     if (loc.getCgiParams().size() != 0)
     {
         CGIRunner cgiRunner = CGIRunner(loc);
-        return cgiRunner.runCGI(_path, _params, _method, _cookies, _body);
+        return cgiRunner.runCGI(_path, _params, _method, _cookies, _body, _headers);
     }
     else
     {
-        // is autoindex on?
+
         if (loc.getAutoindex() == "on")
         {
-            // open the directory
+
             std::string root = loc.getRoot();
             std::string path = root + _path;
             DIR *dir = opendir(path.c_str());
             if (dir == NULL)
             {
-                // is this a file?
+
                 struct stat buffer;
                 if (stat(path.c_str(), &buffer) == 0)
                 {
                     if (S_ISREG(buffer.st_mode))
                     {
-                        // open the file
+
                         std::ifstream file(path.c_str());
                         if (!file.is_open())
                             return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(404));
 
-                        // read the file
                         std::string response;
                         std::string line;
                         while (std::getline(file, line))
                             response += line + "\n";
                         file.close();
 
-                        // find the content-type (html)
                         std::string contentType = "text/html";
 
-                        // prepare the response
                         response = "HTTP/1.1 200 OK\r\nContent-Type: " + contentType + "\r\nContent-Length: " + size_tToString(response.size()) + "\r\n\r\n" + response;
+                        cache.addCache(_uri, response);
                         return SRet<std::string>(EXIT_SUCCESS, response);
                     }
                     else
@@ -293,7 +383,7 @@ SRet<std::string> RequestParser::prepareResponse()
             }
             else
             {
-                // read the directory
+
                 std::string response = "<html><head><title>Index of " + _path + "</title></head><body><h1>Index of " + _path + "</h1><hr><pre>";
                 struct dirent *ent;
                 while ((ent = readdir(dir)) != NULL)
@@ -302,18 +392,23 @@ SRet<std::string> RequestParser::prepareResponse()
                 }
                 closedir(dir);
 
-                // prepare the response
                 response += "</pre><hr></body></html>";
                 response = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: " + size_tToString(response.size()) + "\r\n\r\n" + response;
+                cache.addCache(_uri, response);
                 return SRet<std::string>(EXIT_SUCCESS, response);
             }
-        } 
-        else {
-            // goto the root directory and search the 'index' file
+        }
+        else
+        {
+
             std::string index = loc.getIndex();
             std::string root = loc.getRoot();
-            std::string path = root + _path;
-            std::cout << "Path: " << path << std::endl;
+            std::string _subpath = removeLocationFromPath(_path, loc.getPath());
+
+            std::string path = root + _subpath;
+
+            std::cout << "\033[1;32m" << path << "\033[0m" << std::endl;
+
             struct stat buffer;
             if (stat(path.c_str(), &buffer) == 0)
             {
@@ -327,23 +422,20 @@ SRet<std::string> RequestParser::prepareResponse()
             else
                 return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(404));
 
-            // open the file
             std::ifstream file(path.c_str());
             if (!file.is_open())
                 return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(404));
 
-            // read the file
             std::string response;
             std::string line;
             while (std::getline(file, line))
                 response += line + "\n";
             file.close();
 
-            // find the content-type (html)
-            std::string contentType = "text/html"; // TODO: It should be determined by the file extension :D
+            std::string contentType = "text/html";
 
-            // prepare the response
             response = "HTTP/1.1 200 OK\r\nContent-Type: " + contentType + "\r\nContent-Length: " + size_tToString(response.size()) + "\r\n\r\n" + response;
+            cache.addCache(_uri, response);
             return SRet<std::string>(EXIT_SUCCESS, response);
         }
     }

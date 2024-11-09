@@ -17,5 +17,4 @@ session_id = cookie.get('session_id')
 print("Content-type: text/html\n")
 # print the cookies
 print("Cookies: ")
-print(session_id.value)
 print(form.getvalue('test'))

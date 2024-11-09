@@ -25,7 +25,7 @@ unsigned int stringtoui(const std::string &str);
 unsigned int countThis(std::string str, char c);
 std::string size_tToString(size_t value);
 long long convertSizeToBytes(const std::string& sizeStr);
-bool compareSizeTandLongLong(size_t sizeVal, long long longVal);
 int stringtoi(const std::string &str);
+bool isValidConvertableSizeString(const std::string& str);
 
 #endif

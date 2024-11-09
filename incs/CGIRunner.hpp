@@ -13,7 +13,7 @@ public:
     CGIRunner(Location loc);
     ~CGIRunner();
 
-    SRet<std::string> runCGI(const std::string &_path, const std::map<std::string, std::string> &_params, const std::string &_method, const std::map<std::string, std::string> &_cookies, const std::string &_body);
+    SRet<std::string> runCGI(const std::string &_path, const std::map<std::string, std::string> &_params, const std::string &_method, const std::map<std::string, std::string> &_cookies, const std::string &_body, const std::map<std::string, std::string> &_headers);
 private:
     Location _loc;
 };

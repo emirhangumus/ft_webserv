@@ -2,6 +2,7 @@
 #define SERVER_HPP
 
 #include "ConfigParser.hpp"
+#include "CacheManager.hpp"
 #include <iostream>
 #include <cstdlib>
 #include <algorithm>
@@ -27,6 +28,7 @@ private:
     std::vector<struct sockaddr_in> allSockets;
     std::vector<int> fds;
     unsigned int totalPortSize;
+    CacheManager cacheManager;
 };
 
-#endif // SERVER_HPP
+#endif

@@ -16,13 +16,16 @@
 #include <cstring>
 #include "RequestParser.hpp"
 #include "ErrorResponse.hpp"
+#include "CacheManager.hpp"
 
 Server::Server()
 {
+	this->cacheManager = CacheManager();
 }
 
 Server::~Server()
 {
+	this->cacheManager.clearCache();
 }
 
 void setNonBlock(int fd) {
@@ -144,12 +147,13 @@ bool Server::acceptNewConnectionsIfAvailable(std::vector<pollfd> &pollfds, int i
 
 	int BUFFER_SIZE_READ = 1024;
 	// read the from the client
-	char buffer[1024 * 1024];
+	char buffer[1024]; // 20MB
 	std::fill(buffer, buffer + BUFFER_SIZE_READ, 0);
 	std::string request;
 
 	int is_error = 0;
 	while (1) {
+		// usleep(10); // sleep for a second
 		int bytes = read(_fd, buffer, BUFFER_SIZE_READ);
 		if (bytes == -1) {
 			std::cout << "Error reading from client: " << strerror(errno) << std::endl;
@@ -161,7 +165,7 @@ bool Server::acceptNewConnectionsIfAvailable(std::vector<pollfd> &pollfds, int i
 			break;
 		}
 		std::cout << "Read " << bytes << " bytes from client" << std::endl;
-		std::cout << "Data: " << buffer << std::endl;
+		// std::cout << "Data: " << buffer << std::endl;
 
 		// check if the buffer is empty
 		if (bytes == 0) {
@@ -184,20 +188,21 @@ bool Server::acceptNewConnectionsIfAvailable(std::vector<pollfd> &pollfds, int i
 			response = ErrorResponse::getErrorResponse(400);
 		}
 		else {
-			std::cout << "Parsed request successfully" << std::endl;
-			SRet<std::string> realResponse = rp.prepareResponse();
+			SRet<std::string> realResponse = rp.prepareResponse(cacheManager);
 			if (realResponse.status == EXIT_FAILURE) {
 				response = realResponse.err;
-				std::cout << "Error preparing response: " << response << std::endl;
+				// std::cout << "Error preparing response: " << response << std::endl;
 			}
 			else {
 				response = realResponse.data;
 			}
-			// response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 12\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS\r\nAccess-Control-Allow-Headers: *\r\n\r\nHello World!";
 		}
 	} else {
 		std::string response = ErrorResponse::getErrorResponse(500);
 	}
+
+	// cache the response
+	cacheManager.addCache(request, response);
 
 	
 	// write to the client
