@@ -423,8 +423,11 @@ SRet<std::string> RequestParser::prepareResponse(CacheManager &cache)
                 }
             }
             else
-                return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(404));
+            {
+                path = "error-pages/error.html";
+                // return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(404));
 
+            }
             std::ifstream file(path.c_str());
             if (!file.is_open())
                 return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(404));

@@ -145,7 +145,7 @@ void Server::processConnections(ConfigParser config)
         }
         _listeners.push_back(listener);  // Store listeners for cleanup
     }
-
+    // color red debug
     // Main loop
     while (true) {
         read_fds = master_readfds;    // Copy the master set
