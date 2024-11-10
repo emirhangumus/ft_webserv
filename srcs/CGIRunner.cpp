@@ -101,7 +101,13 @@ SRet<std::string> CGIRunner::runCGI(const std::string &_path, const std::map<std
     
     // Prepare environment variables
     std::string contentLength = "CONTENT_LENGTH=" + size_tToString(_body.length());
-    std::string contentType = "CONTENT_TYPE=" + _headers.at("Content-Type");
+    std::string contentType = "CONTENT_TYPE=";
+    try {
+        contentType = _headers.at("Content-Type");
+    } catch (const std::out_of_range &e) {
+        contentType = "CONTENT_TYPE=";
+    }
+    std::cout << "\033[1;31m" << "DEBUG" << "\033[0m" << std::endl;
     
     // std::cout << "body: " << _body << std::endl;
     

@@ -5,7 +5,6 @@ import cgitb
 cgitb.enable()  # Enable detailed error messages
 
 # print("Content-Type: text/html;charset=utf-8\n")  # Note the extra newline
-
 try:
     form = cgi.FieldStorage()
     

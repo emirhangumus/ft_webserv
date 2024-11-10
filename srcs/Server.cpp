@@ -39,7 +39,7 @@ int Server::setNonBlock(int sockfd) {
 
 int Server::createSocket(unsigned int port) {
     // Create socket
-    int sockfd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
+    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd == -1) {
         std::cerr << "Failed to create socket for port " << port << ": "
                   << strerror(errno) << std::endl;
@@ -119,25 +119,23 @@ int Server::createSocket(unsigned int port) {
 
 // Helper function to set non-blocking mode
 
-
 void Server::processConnections(ConfigParser config)
 {
     std::vector<unsigned int> allPorts = config.getAllPorts();
     fd_set master_readfds;    // Master file descriptor list
     fd_set master_writefds;   // Master file descriptor list for writing
-    fd_set read_fds;         // Temp file descriptor list for select()
-    fd_set write_fds;        // Temp file descriptor list for select()
+    fd_set read_fds;          // Temp file descriptor list for select()
+    fd_set write_fds;         // Temp file descriptor list for select()
     
     // Clear the master and temp sets
     FD_ZERO(&master_readfds);
     FD_ZERO(&master_writefds);
     FD_ZERO(&read_fds);
     FD_ZERO(&write_fds);
-
     // Add the listener to the master set
-    for (std::vector<unsigned int>::const_iterator it = allPorts.begin(); it != allPorts.end(); it++)
+    for (std::vector<unsigned int>::iterator port = allPorts.begin(); port != allPorts.end(); port++)
     {
-        int listener = createSocket(*it);
+        int listener = createSocket(*port);
         if (listener < 0) {
             continue;
         }
@@ -154,7 +152,7 @@ void Server::processConnections(ConfigParser config)
         write_fds = master_writefds;  // Copy the master write set
 
         // Wait for activity on any socket
-        int selectResult = select(_maxFd + 1, &read_fds, &write_fds, NULL, NULL);
+        int selectResult = select(_maxFd + 1, &read_fds, &write_fds, nullptr, nullptr);
         if (selectResult == -1) {
             if (errno == EINTR) {  // Handle interrupted system call
                 continue;
@@ -178,67 +176,65 @@ void Server::processConnections(ConfigParser config)
                     } else {
                         setNonBlock(newfd);
                         FD_SET(newfd, &master_readfds);     // Add to master set
-                        FD_SET(newfd, &master_writefds);    // Also monitor for writing
                         if (newfd > _maxFd) {
                             _maxFd = newfd;
                         }
+                        _clientData[newfd] = "";  // Initialize client data
                         std::cout << "New connection on socket " << newfd << std::endl;
-                        _clientData[fd] = "";
                     }
                 } else {
                     // Handle data from a client
                     char buf[4096];
                     ssize_t nbytes = recv(fd, buf, sizeof(buf), 0);
-                    
-                    if (nbytes < 0) {
-                        // Got error or connection closed
-                        _clientData[fd].append(buf, nbytes);
+
+                    if (nbytes <= 0) {
                         if (nbytes < 0) {
                             std::cerr << "Recv error: " << strerror(errno) << std::endl;
                         }
                         closeConnection(fd, &master_readfds, &master_writefds);
                     } else {
-                        // Process received data here
+                        // Append data to the client's buffer
                         _clientData[fd].append(buf, nbytes);
                         std::cout << "Received " << nbytes << " bytes from client " << fd << std::endl;
-                        // For now, we'll just echo back
-                        FD_SET(fd, &master_writefds);  // Mark for writing
+                        
+                        // Check if we have a complete HTTP request (ending with \r\n\r\n)
+                        if (_clientData[fd].find("\r\n\r\n") != std::string::npos) {
+                            FD_SET(fd, &master_writefds);  // Mark for writing
+                        }
                     }
-                    std::fill(buf, buf + sizeof(buf), 0);
                 }
             }
             
             if (FD_ISSET(fd, &write_fds)) {
-                std::string response;
-                RequestParser rp = RequestParser(config);
-                SRet<bool> ret = rp.parseRequest(_clientData[fd]);
-                if (ret.status == EXIT_FAILURE) {
-                    std::cout << "Error parsing request: " << ret.err << std::endl;
-                    response = ErrorResponse::getErrorResponse(400);
-                }
-                else {
-                    SRet<std::string> realResponse = rp.prepareResponse(cacheManager);
-                    if (realResponse.status == EXIT_FAILURE)
-                        response = realResponse.err;
-                    else
-                        response = realResponse.data;
-                }
-                // Handle writing to client
-                
-                ssize_t bytesWritten = send(fd, response.c_str(), response.size(), 0);
-                if (bytesWritten <= 0) {
-                    if (bytesWritten < 0) {
-                        std::cerr << "Send error: " << strerror(errno) << std::endl;
+                if (!_clientData[fd].empty()) {
+                    std::string response;
+                    RequestParser rp = RequestParser(config);
+                    SRet<bool> ret = rp.parseRequest(_clientData[fd]);
+                    // DEBUG WİTH RED COLOR
+
+                    if (ret.status == EXIT_FAILURE) {
+                        std::cout << "Error parsing request: " << ret.err << std::endl;
+                        response = ErrorResponse::getErrorResponse(400);
+                    } else {
+                        SRet<std::string> realResponse = rp.prepareResponse(cacheManager);
+                        response = (realResponse.status == EXIT_FAILURE) ? realResponse.err : realResponse.data;
                     }
-                    closeConnection(fd, &master_readfds, &master_writefds);
-                } else {
-                    // Successfully wrote data, remove from write set
+                    // write DEBUG with color red
+                    // Handle writing to client
+                    ssize_t bytesWritten = send(fd, response.c_str(), response.size(), 0);
+                    if (bytesWritten <= 0) {
+                        std::cerr << "Send error: " << strerror(errno) << std::endl;
+                        closeConnection(fd, &master_readfds, &master_writefds);
+                    } else {
+                        std::cout << "Response sent to client " << fd << std::endl;
+                    }
                     closeConnection(fd, &master_readfds, &master_writefds);
                 }
             }
         }
     }
 }
+
 
 // Helper method to close connections
 void Server::closeConnection(int fd, fd_set* master_readfds, fd_set* master_writefds) {

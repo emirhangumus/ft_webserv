@@ -29,7 +29,6 @@ public:
 private:
     std::vector<struct sockaddr_in> allSockets;
     std::vector<int> fds;
-    unsigned int totalPortSize;
     CacheManager cacheManager;
     int _maxFd;
     std::vector<int> _listeners;
