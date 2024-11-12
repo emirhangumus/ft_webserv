@@ -3,6 +3,7 @@
 
 #include "ConfigParser.hpp"
 #include "CacheManager.hpp"
+#include "MimeTypes.hpp"
 #include <iostream>
 #include <cstdlib>
 #include <algorithm>
@@ -22,7 +23,6 @@ public:
     ~Server();
 
     void processConnections(ConfigParser config);
-    bool acceptNewConnectionsIfAvailable(std::vector<pollfd> &pollfds, int i, ConfigParser config);
     void closeConnection(int fd, fd_set* master_readfds, fd_set* master_writefds);
     int createSocket(unsigned int port);
     int setNonBlock(int sockfd);
@@ -33,6 +33,9 @@ private:
     int _maxFd;
     std::vector<int> _listeners;
     std::map<int, std::string> _clientData;
+
+    MimeTypes mimeTypes;
+
 };
 
 #endif

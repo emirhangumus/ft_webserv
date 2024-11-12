@@ -296,7 +296,7 @@ std::string removeLocationFromPath(std::string path, std::string location)
     return path;
 }
 
-SRet<std::string> RequestParser::prepareResponse(CacheManager &cache)
+SRet<std::string> RequestParser::prepareResponse(CacheManager &cache, MimeTypes &mimeTypes)
 {
 
     std::map<std::string, std::string>::iterator cache_it = _headers.find("Pragma");
@@ -412,6 +412,7 @@ SRet<std::string> RequestParser::prepareResponse(CacheManager &cache)
 
             std::cout << "\033[1;32m" << path << "\033[0m" << std::endl;
 
+            bool found = false;
             struct stat buffer;
             if (stat(path.c_str(), &buffer) == 0)
             {
@@ -420,6 +421,7 @@ SRet<std::string> RequestParser::prepareResponse(CacheManager &cache)
                     if (index == "")
                         return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(404));
                     path += "/" + index;
+                    found = true;
                 }
             }
             else
@@ -432,15 +434,27 @@ SRet<std::string> RequestParser::prepareResponse(CacheManager &cache)
             if (!file.is_open())
                 return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(404));
 
-            std::string response;
-            std::string line;
-            while (std::getline(file, line))
-                response += line + "\n";
+           // read the file with the given path use stream
+            std::ostringstream oss;
+            oss << file.rdbuf();
+            std::string fileContent = oss.str();
             file.close();
 
-            std::string contentType = "text/html";
+            std::cout << "\033[1;32m" << "fileContent: " << fileContent.size() << "\033[0m" << std::endl;
+            /**
+             * TODO:
+             * 1. Check if the file is an image, video, etc. and set the content type accordingly
+             */
+            std::string extension = path.substr(path.find_last_of(".") + 1);
+            std::string contentType = mimeTypes.getMimeType("."+extension);
 
-            response = "HTTP/1.1 200 OK\r\nContent-Type: " + contentType + "\r\nContent-Length: " + size_tToString(response.size()) + "\r\n\r\n" + response;
+            std::cout << "\033[1;32m" << "Content Type: " << contentType << "\033[0m" << "Extension: " << extension << std::endl;
+
+            // std::string responseLine = found ? "200 OK" : "404 Not Found";
+            std::string responseLine = "200 OK";
+            (void)found;
+
+            std::string response = "HTTP/1.1 "+responseLine+"\r\nContent-Type: " + contentType + "\r\nContent-Length: " + size_tToString(fileContent.size()) + "\r\n\r\n" + fileContent;
             cache.addCache(_uri, response);
             return SRet<std::string>(EXIT_SUCCESS, response);
         }

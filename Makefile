@@ -4,7 +4,7 @@ INCS_DIR = incs
 OBJ_DIR = obj
 
 # Source files and corresponding object files
-SRCS = $(SRCS_DIR)/main.cpp $(SRCS_DIR)/ConfigParser.cpp $(SRCS_DIR)/Config.cpp $(SRCS_DIR)/Utils.cpp $(SRCS_DIR)/Location.cpp $(SRCS_DIR)/Server.cpp $(SRCS_DIR)/RequestParser.cpp $(SRCS_DIR)/ErrorResponse.cpp $(SRCS_DIR)/CGIRunner.cpp $(SRCS_DIR)/CacheManager.cpp
+SRCS = $(SRCS_DIR)/main.cpp $(SRCS_DIR)/ConfigParser.cpp $(SRCS_DIR)/Config.cpp $(SRCS_DIR)/Utils.cpp $(SRCS_DIR)/Location.cpp $(SRCS_DIR)/Server.cpp $(SRCS_DIR)/RequestParser.cpp $(SRCS_DIR)/ErrorResponse.cpp $(SRCS_DIR)/CGIRunner.cpp $(SRCS_DIR)/CacheManager.cpp $(SRCS_DIR)/MimeTypes.cpp
 OBJS = $(SRCS:$(SRCS_DIR)/%.cpp=$(OBJ_DIR)/$(SRCS_DIR)/%.o)
 
 # Project name
