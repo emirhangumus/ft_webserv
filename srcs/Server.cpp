@@ -126,6 +126,24 @@ void delayMilliseconds(double milliseconds) {
     clock_t duration = static_cast<clock_t>(milliseconds * (CLOCKS_PER_SEC / 1000.0));
     while (clock() - start < duration);
 }
+
+std::string readRequestBody(int client_fd, size_t contentLength) {
+    std::string body;
+    char buffer[8192];  // Larger buffer size for reading
+    ssize_t bytesRead;
+    size_t totalRead = 0;
+
+    // Read in a loop until content length is fully read
+    while (totalRead < contentLength) {
+        bytesRead = read(client_fd, buffer, sizeof(buffer));
+        if (bytesRead <= 0) break;  // Exit on error or EOF
+        body.append(buffer, bytesRead);
+        totalRead += bytesRead;
+    }
+
+    return body;
+}
+
 void Server::processConnections(ConfigParser config)
 {
     std::vector<unsigned int> allPorts = config.getAllPorts();
@@ -170,7 +188,7 @@ void Server::processConnections(ConfigParser config)
 
         // Handle all sockets with activity
         for (int fd = 0; fd <= _maxFd; fd++) {
-            delayMilliseconds(1.0);
+            // delayMilliseconds(1.0); // Sleep for a millisecond to avoid busy waiting
             if (FD_ISSET(fd, &read_fds)) {
                 // Check if this is a listener socket
                 if (std::find(_listeners.begin(), _listeners.end(), fd) != _listeners.end()) {
@@ -192,7 +210,7 @@ void Server::processConnections(ConfigParser config)
                     }
                 } else {
                     // Handle data from a client
-                    char buf[4096];
+                    char buf[4096 * 4];  // 16KB buffer
                     ssize_t nbytes = recv(fd, buf, sizeof(buf), 0);
 
                     if (nbytes <= 0) {
@@ -208,7 +226,37 @@ void Server::processConnections(ConfigParser config)
                         // Check if we have a complete HTTP request (ending with \r\n\r\n)
                         // Emirhan: Is it the best way to check if the request is complete?
                         if (_clientData[fd].find("\r\n\r\n") != std::string::npos) {
-                            FD_SET(fd, &master_writefds);  // Mark for writing
+                            RequestParser rp = RequestParser(config);
+                            rp.parseRequest(_clientData[fd]);
+
+                            std::string method = rp.getMethod();
+
+                            if (method == "GET") 
+                            {
+                                FD_SET(fd, &master_writefds);  // Mark for writing
+                                continue;
+                            }
+
+                            try {
+                                std::string cL = rp.getHeaders().at("Content-Length");
+
+                                if (cL == "") {
+                                    std::cout << "Content-Length header is empty" << std::endl;
+                                    closeConnection(fd, &master_readfds, &master_writefds);
+                                    continue;
+                                }
+
+                                size_t contentLength = stringtoui(cL);
+
+                                if (_clientData[fd].size() < contentLength + 4) {
+                                    std::cout << "Incomplete request" << std::endl;
+                                    continue;
+                                }
+                                FD_SET(fd, &master_writefds);  // Mark for writing
+                            }
+                            catch (const std::out_of_range& oor) {
+                                std::cout << "Content-Length header not found" << std::endl;
+                            }
                         }
                     }
                 }
@@ -227,10 +275,14 @@ void Server::processConnections(ConfigParser config)
                     } else {
                         SRet<std::string> realResponse = rp.prepareResponse(cacheManager, mimeTypes);
                         response = (realResponse.status == EXIT_FAILURE) ? realResponse.err : realResponse.data;
+
+                        // std::cout << "Response: " << response << std::endl;
                     }
                     // write DEBUG with color red
                     // Handle writing to client
+                    // std::cout << "Response: " << response << std::endl;
                     ssize_t bytesWritten = send(fd, response.c_str(), response.size(), 0);
+                    delayMilliseconds(1.0); // Sleep for a millisecond to avoid busy waiting
                     if (bytesWritten <= 0) {
                         std::cerr << "Send error: " << strerror(errno) << std::endl;
                         closeConnection(fd, &master_readfds, &master_writefds);
@@ -247,8 +299,10 @@ void Server::processConnections(ConfigParser config)
                     // - Handle chunked encoding
                     //
                     // We can use `timeout` system call to set a timeout for the connection
+                    std::cout << "Bytes written: " << bytesWritten << std::endl;
+                    std::cout << "Response size: " << response.size() << std::endl;
                     if ((size_t)bytesWritten == response.size()) {
-                        // closeConnection(fd, &master_readfds, &master_writefds);
+                        closeConnection(fd, &master_readfds, &master_writefds);
                     }
                 }
             }

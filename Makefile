@@ -49,7 +49,7 @@ asan: CFLAGS += -fsanitize=address
 asan: re
 
 siege: all
-	siege -b -t3S http://localhost:8082
+	siege -b -t3S http://localhost:8083
 
 run: all
 	./webserv confs/default.conf

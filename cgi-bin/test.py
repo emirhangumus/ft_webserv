@@ -14,7 +14,7 @@ cgitb.enable()
 cookie = cookies.SimpleCookie(os.environ.get('HTTP_COOKIE'))
 session_id = cookie.get('session_id')
 
-print("Content-type: text/html\n")
+print("Content-Type: text/html\n")
 # print the cookies
 print("Cookies: ")
 print(form.getvalue('test'))

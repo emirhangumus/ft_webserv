@@ -82,11 +82,9 @@ if session_id is None:
     session_id = str(uuid.uuid4())
     cookie['session_id'] = session_id
     print(cookie)
-    print("Content-type: text/html\n")
 else:
     # Retrieve existing session
     session_id = session_id.value
-    print("Content-type: text/html\n")
 
 # Retrieve session data
 user_data = session_db.get(session_id, {})

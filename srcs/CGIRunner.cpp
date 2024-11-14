@@ -73,7 +73,6 @@ std::vector<std::string> pathToRequestURIandScriptName(const std::string &path)
     result.push_back(scriptName);
     return result;
 }
-
 SRet<std::string> CGIRunner::runCGI(const std::string &_path, const std::map<std::string, std::string> &_params, 
                                     const std::string &_method, const std::map<std::string, std::string> &_cookies, 
                                     const std::string &_body, const std::map<std::string, std::string> &_headers)
@@ -81,46 +80,42 @@ SRet<std::string> CGIRunner::runCGI(const std::string &_path, const std::map<std
     std::string extension = _path.substr(_path.find_last_of(".") + 1);
     const std::map<std::string, std::string>& cgi_params = _loc.getCgiParams();
     std::string cgiRunnerPath;
+
     for (std::map<std::string, std::string>::const_iterator param_it = cgi_params.begin(); 
-         param_it != cgi_params.end(); ++param_it) 
-    {
-        if (param_it->first == extension)
+         param_it != cgi_params.end(); ++param_it) {
+        if (param_it->first == extension) {
             cgiRunnerPath = param_it->second;
+        }
     }
 
     std::string file = _loc.getRoot() + "/" + extractFileName(_path);
     std::string absPath = get_absolute_path(file);
-    if (absPath.empty())
+    if (absPath.empty()) {
         return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(404));
+    }
 
-    // Create uploads directory if it doesn't exist
+    // Ensure uploads directory exists
     std::string uploadsDir = _loc.getRoot() + "/tmp";
     mkdir(uploadsDir.c_str(), 0755);
 
     std::vector<std::string> requestURIandScriptName = pathToRequestURIandScriptName(_path);
-    
+
+    // PRİNT BODY WİTH PURPLE
+    // std::cout << "\033[1;35m" << "BODY: " << _body << "\033[0m" << std::endl;
+
     // Prepare environment variables
     std::string contentLength = "CONTENT_LENGTH=" + size_tToString(_body.length());
     std::string contentType = "CONTENT_TYPE=";
-    try {
-        contentType = _headers.at("Content-Type");
-    } catch (const std::out_of_range &e) {
-        contentType = "CONTENT_TYPE=";
-    }
-    std::cout << "\033[1;31m" << "DEBUG" << "\033[0m" << std::endl;
-    
-    // std::cout << "body: " << _body << std::endl;
-    
-    // Extract boundary from body if present
-    size_t boundaryPos = _body.find("boundary=");
-    if (boundaryPos != std::string::npos) {
-        size_t boundaryEnd = _body.find("\r\n", boundaryPos);
-        if (boundaryEnd != std::string::npos) {
-            contentType += _body.substr(boundaryPos + 9, boundaryEnd - (boundaryPos + 9));
-        }
+    if (_headers.find("Content-Type") != _headers.end()) {
+        // std::cout << "FOUND HEADER IS: " << _headers.find("Content-Type")->second << std::endl;
+        contentType += _headers.find("Content-Type")->second;
     }
 
-    // std::cout << "Content type: " << contentType << std::endl;
+    // Extract boundary if it exists
+    // size_t boundaryPos = contentType.find("boundary=");
+    // if (boundaryPos != std::string::npos) {
+    //     contentType += contentType.substr(boundaryPos + 9);
+    // }
 
     std::string _REQUEST_URI = "REQUEST_URI=" + requestURIandScriptName[0];
     std::string _SCRIPT_FILENAME = "SCRIPT_FILENAME=" + absPath;
@@ -129,9 +124,7 @@ SRet<std::string> CGIRunner::runCGI(const std::string &_path, const std::map<std
     std::string _HTTP_COOKIE = "HTTP_COOKIE=" + cookieMapToString(_cookies);
     std::string _PATH_INFO = "PATH_INFO=" + _path;
 
-    char *argv[] = {const_cast<char *>(cgiRunnerPath.c_str()), 
-                    const_cast<char *>(file.c_str()), 
-                    NULL};
+    char *argv[] = {const_cast<char *>(cgiRunnerPath.c_str()), const_cast<char *>(file.c_str()), NULL};
     
     char *envp[] = {
         const_cast<char *>("AUTH_TYPE="),
@@ -155,17 +148,23 @@ SRet<std::string> CGIRunner::runCGI(const std::string &_path, const std::map<std
         NULL
     };
 
+    // print all env's
+    // for (int i = 0; envp[i] != NULL; i++) {
+    //     std::cout << envp[i] << std::endl;
+    // }
+
     int pipefd[2];
     int bodyPipe[2];
-    if (pipe(pipefd) == -1 || pipe(bodyPipe) == -1)
+    if (pipe(pipefd) == -1 || pipe(bodyPipe) == -1) {
         return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(500));
+    }
 
     pid_t pid = fork();
-    if (pid == -1)
+    if (pid == -1) {
         return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(500));
+    }
 
-    if (pid == 0)
-    {
+    if (pid == 0) {  // Child process
         close(pipefd[0]);
         close(bodyPipe[1]);
 
@@ -178,28 +177,22 @@ SRet<std::string> CGIRunner::runCGI(const std::string &_path, const std::map<std
             std::cerr << "CGI execution failed: " << strerror(errno) << std::endl;
             exit(EXIT_FAILURE);
         }
-    }
-    else
-    {
+    } else {  // Parent process
         close(pipefd[1]);
         close(bodyPipe[0]);
 
-        // Write the body data to the CGI script
-        if (!_body.empty())
-        {
-            ssize_t written = write(bodyPipe[1], _body.c_str(), _body.size());
-            if (written == -1) {
+        if (!_body.empty()) {
+            if (write(bodyPipe[1], _body.c_str(), _body.size()) == -1) {
                 std::cerr << "Failed to write to CGI input: " << strerror(errno) << std::endl;
             }
         }
         close(bodyPipe[1]);
 
-        // Read the CGI script's output
+        // Read the CGI output
         std::string output;
         char buffer[4096];
         ssize_t bytesRead;
-        while ((bytesRead = read(pipefd[0], buffer, sizeof(buffer) - 1)) > 0)
-        {
+        while ((bytesRead = read(pipefd[0], buffer, sizeof(buffer) - 1)) > 0) {
             buffer[bytesRead] = '\0';
             output += buffer;
         }
@@ -208,17 +201,20 @@ SRet<std::string> CGIRunner::runCGI(const std::string &_path, const std::map<std
         int status;
         waitpid(pid, &status, 0);
 
-        // if (WIFEXITED(status)) {
-        //     int exitStatus = WEXITSTATUS(status);
-        //     if (exitStatus == 0) {
-                // Check if the output already contains HTTP headers
-                if (output.find("Content-type:") == std::string::npos) {
-                    output = "Content-type: text/html\r\n\r\n" + output;
-                }
-                return SRet<std::string>(0, "HTTP/1.1 200 OK\r\n" + output, "");
-        //     }
-        //     return SRet<std::string>(exitStatus, "", ErrorResponse::getErrorResponse(500));
-        // }
+        if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+            std::string headers;
+            if (output.find("Content-Type:") == std::string::npos) {
+                headers += "Content-Type: text/html\r\n";
+            }
+            if (output.find("Content-Length:") == std::string::npos) {
+                headers += "Content-Length: " + size_tToString(output.size()) + "\r\n";
+            }
+            headers = "HTTP/1.1 200 OK\r\n" + headers;
+
+            return SRet<std::string>(0, headers + "\r\n" + output); 
+        }
+        return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(500));
     }
+
     return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(500));
 }

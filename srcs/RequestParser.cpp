@@ -26,8 +26,8 @@ RequestParser::~RequestParser()
 
 SRet<bool> RequestParser::parseRequest(std::string request)
 {
-    std::cout << "\033[1;32m" << "****************************************" << "\033[0m" << std::endl;
-    std::cout << "\033[1;32m" << request << "\033[0m" << std::endl;
+    // std::cout << "\033[1;32m" << "****************************************" << "\033[0m" << std::endl;
+    // std::cout << "\033[1;32m" << request << "\033[0m" << std::endl;
 
     size_t endOfRequestLine = request.find("\r\n");
     if (endOfRequestLine == std::string::npos)
@@ -153,6 +153,9 @@ SRet<bool> RequestParser::parseBody(std::string body)
 {
     // if (body.find('\0') != std::string::npos)
     //     return SRet<bool>(EXIT_FAILURE, false, "Body contains invalid characters");
+
+    // print the body with blue color
+    // std::cout << "\033[1;34m" << body << "\033[0m" << std::endl;
 
     _body = body;
     return SRet<bool>(EXIT_SUCCESS, true);
@@ -440,7 +443,7 @@ SRet<std::string> RequestParser::prepareResponse(CacheManager &cache, MimeTypes 
             std::string fileContent = oss.str();
             file.close();
 
-            std::cout << "\033[1;32m" << "fileContent: " << fileContent.size() << "\033[0m" << std::endl;
+            // std::cout << "\033[1;32m" << "fileContent: " << fileContent.size() << "\033[0m" << std::endl;
             /**
              * TODO:
              * 1. Check if the file is an image, video, etc. and set the content type accordingly
@@ -448,7 +451,7 @@ SRet<std::string> RequestParser::prepareResponse(CacheManager &cache, MimeTypes 
             std::string extension = path.substr(path.find_last_of(".") + 1);
             std::string contentType = mimeTypes.getMimeType("."+extension);
 
-            std::cout << "\033[1;32m" << "Content Type: " << contentType << "\033[0m" << "Extension: " << extension << std::endl;
+            // std::cout << "\033[1;32m" << "Content Type: " << contentType << "\033[0m" << "Extension: " << extension << std::endl;
 
             // std::string responseLine = found ? "200 OK" : "404 Not Found";
             std::string responseLine = "200 OK";
