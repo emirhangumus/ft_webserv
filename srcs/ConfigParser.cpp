@@ -21,7 +21,7 @@ ConfigParser::ConfigParser()
     _VALID_DIRECTIVES.push_back("client_max_body_size");
     _VALID_DIRECTIVES.push_back("allow_methods");
     _VALID_DIRECTIVES.push_back("cgi_params");
-    _VALID_DIRECTIVES.push_back("error_page");
+    _VALID_DIRECTIVES.push_back("error_pages");
     VALID_DIRECTIVES = _VALID_DIRECTIVES;
 }
 
@@ -239,8 +239,16 @@ SRet<std::map<std::string, Config> > ConfigParser::parseConfigFile(const std::st
                 } else if (directive == "cgi_params") {
                     std::map<std::string, std::string> params = parseCgiParams(value);
                     main_location.setCgiParams(params);
-                } else if (directive == "error_page") {
-                    main_location.setErrorPage(value);
+                } else if (directive == "error_pages") {
+                    std::vector<std::string> error_page_values = split(value, ' ');
+                    if (error_page_values.size() < 2)
+                        return SRet<std::map<std::string, Config> >(EXIT_FAILURE, config, "Error: invalid config file: error_page directive must have at least 2 arguments");
+                    size_t size_of_error_page_values = error_page_values.size();
+                    for (size_t i = 0; i < size_of_error_page_values - 1; i++) {
+                        if (stringtoui(error_page_values[i]) < 100 || stringtoui(error_page_values[i]) > 599)
+                            return SRet<std::map<std::string, Config> >(EXIT_FAILURE, config, "Error: invalid config file: error code must be between 100 and 599");
+                        main_location.addErrorPage(stringtoui(error_page_values[i]), error_page_values[size_of_error_page_values - 1]);
+                    }
                 }
             } else if (deep_level == 2) {
                 if (directive == "root") {
@@ -266,8 +274,16 @@ SRet<std::map<std::string, Config> > ConfigParser::parseConfigFile(const std::st
                 } else if (directive == "cgi_params") {
                     std::map<std::string, std::string> params = parseCgiParams(value);
                     locations[current_location_key].setCgiParams(params);
-                } else if (directive == "error_page") {
-                    locations[current_location_key].setErrorPage(value);
+                } else if (directive == "error_pages") {
+                    std::vector<std::string> error_page_values = split(value, ' ');
+                    if (error_page_values.size() < 2)
+                        return SRet<std::map<std::string, Config> >(EXIT_FAILURE, config, "Error: invalid config file: error_page directive must have at least 2 arguments");
+                    size_t size_of_error_page_values = error_page_values.size();
+                    for (size_t i = 0; i < size_of_error_page_values - 1; i++) {
+                        if (stringtoui(error_page_values[i]) < 100 || stringtoui(error_page_values[i]) > 599)
+                            return SRet<std::map<std::string, Config> >(EXIT_FAILURE, config, "Error: invalid config file: error code must be between 100 and 599");
+                        locations[current_location_key].addErrorPage(stringtoui(error_page_values[i]), error_page_values[size_of_error_page_values - 1]);
+                    }
                 }
             }
         }

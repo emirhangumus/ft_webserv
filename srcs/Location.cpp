@@ -17,7 +17,7 @@ Location::Location()
     this->client_max_body_size = -1;
     this->allow_methods = std::vector<std::string>();
     this->cgi_params = std::map<std::string, std::string>();
-    this->error_page = "";
+    this->error_pages = std::map<int, std::string>();
     this->return_ = std::pair<int, std::string>(-1, "");
 }
 
@@ -61,9 +61,14 @@ void Location::setCgiParams(const std::map<std::string, std::string> &cgi_params
     this->cgi_params = cgi_params;
 }
 
-void Location::setErrorPage(const std::string &error_page)
+void Location::setErrorPages(const std::map<int, std::string>& error_pages)
 {
-    this->error_page = error_page;
+    this->error_pages = error_pages;
+}
+
+void Location::addErrorPage(int code, const std::string &error_page)
+{
+    this->error_pages[code] = error_page;
 }
 
 void Location::setReturn(const std::pair<int, std::string>& return_)
@@ -86,8 +91,13 @@ void Location::printLocation() const
         std::cout << "―― " << *it << " ";
     }
     std::cout << std::endl;
-    std::cout << "―― Error Page: " << this->error_page << std::endl;
     std::cout << "―― Return: " << this->return_.first << " " << this->return_.second << std::endl;
+
+    std::cout << "―― Error Pages: " << std::endl;
+    for (std::map<int, std::string>::const_iterator it = this->error_pages.begin(); it != this->error_pages.end(); ++it)
+    {
+        std::cout << "―― " << it->first << " = " << it->second << std::endl;
+    }
 
 
     std::cout << "―― Cgi Params: " << std::endl;

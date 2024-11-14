@@ -123,10 +123,7 @@ SRet<bool> RequestParser::parseHeaders(std::string headers)
 
         std::string key = headerLines[i].substr(0, colonPos);
         std::string value = trim(headerLines[i].substr(colonPos + 1));
-        // // Print key values in color Blue
-        // std::cout << "\033[1;34m" << headerLines[i] << "\033[0m" << std::endl; 
-        // std::cout << "\033[1;34m" << key << "\033[0m" << std::endl;
-        // std::cout << "\033[1;34m" << value << "\033[0m" << std::endl;
+
         if (key.find_first_of("\0\r\n") != std::string::npos || value.find_first_of("\0\r\n") != std::string::npos)
             return SRet<bool>(EXIT_FAILURE, false, "Invalid header line: control characters detected");
 
@@ -329,10 +326,10 @@ SRet<std::string> RequestParser::prepareResponse(CacheManager &cache, MimeTypes 
     Location loc = serverConfig.getCorrentLocation(_path);
 
     if (std::find(loc.getAllowMethods().begin(), loc.getAllowMethods().end(), _method) == loc.getAllowMethods().end())
-        return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(405));
+        return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(405, loc));
 
     if (loc.getClientMaxBodySize() != -1 && _body.size() > static_cast<size_t>(loc.getClientMaxBodySize()))
-        return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(413));
+        return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(413, loc));
 
     if (loc.getReturn().first != -1)
     {
@@ -367,7 +364,7 @@ SRet<std::string> RequestParser::prepareResponse(CacheManager &cache, MimeTypes 
 
                         std::ifstream file(path.c_str());
                         if (!file.is_open())
-                            return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(404));
+                            return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(404, loc));
 
                         std::string response;
                         std::string line;
@@ -382,10 +379,10 @@ SRet<std::string> RequestParser::prepareResponse(CacheManager &cache, MimeTypes 
                         return SRet<std::string>(EXIT_SUCCESS, response);
                     }
                     else
-                        return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(404));
+                        return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(404, loc));
                 }
                 else
-                    return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(404));
+                    return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(404, loc));
             }
             else
             {
@@ -422,20 +419,20 @@ SRet<std::string> RequestParser::prepareResponse(CacheManager &cache, MimeTypes 
                 if (S_ISDIR(buffer.st_mode))
                 {
                     if (index == "")
-                        return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(404));
+                        return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(404, loc));
                     path += "/" + index;
                     found = true;
                 }
             }
             else
             {
-                path = "error-pages/error.html";
-                // return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(404));
+                // path = "error-pages/error.html";
+                return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(404, loc));
 
             }
             std::ifstream file(path.c_str());
             if (!file.is_open())
-                return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(404));
+                return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(404, loc));
 
            // read the file with the given path use stream
             std::ostringstream oss;

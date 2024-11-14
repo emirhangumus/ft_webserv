@@ -26,7 +26,7 @@ void Config::fillConfig(std::string listen, std::vector<std::string> server_name
         locations[it->first].setAutoindex(locations[it->first].getAutoindex() == "" ? main_location.getAutoindex() : locations[it->first].getAutoindex());
         locations[it->first].setClientMaxBodySize(locations[it->first].getClientMaxBodySize() == -1 ? main_location.getClientMaxBodySize() : locations[it->first].getClientMaxBodySize());
         locations[it->first].setCgiParams(locations[it->first].getCgiParams().empty() ? main_location.getCgiParams() : locations[it->first].getCgiParams());
-        locations[it->first].setErrorPage(locations[it->first].getErrorPage() == "" ? main_location.getErrorPage() : locations[it->first].getErrorPage());
+        locations[it->first].setErrorPages(locations[it->first].getErrorPages().empty() ? main_location.getErrorPages() : locations[it->first].getErrorPages());
         locations[it->first].setIndex(locations[it->first].getIndex() == "" ? main_location.getIndex() : locations[it->first].getIndex());
         locations[it->first].setReturn(locations[it->first].getReturn().first == -1 ? main_location.getReturn() : locations[it->first].getReturn());
         locations[it->first].setRoot(locations[it->first].getRoot() == "" ? main_location.getRoot() : locations[it->first].getRoot());
@@ -43,7 +43,7 @@ void Config::fillConfig(std::string listen, std::vector<std::string> server_name
     main_location.setAutoindex(main_location.getAutoindex() == "" ? "off" : main_location.getAutoindex());
     main_location.setClientMaxBodySize(main_location.getClientMaxBodySize() == -1 ? -1 : main_location.getClientMaxBodySize());
     main_location.setCgiParams(main_location.getCgiParams().empty() ? std::map<std::string, std::string>() : main_location.getCgiParams());
-    main_location.setErrorPage(main_location.getErrorPage() == "" ? "" : main_location.getErrorPage());
+    main_location.setErrorPages(main_location.getErrorPages().empty() ? std::map<int, std::string>() : main_location.getErrorPages());
     main_location.setIndex(main_location.getIndex() == "" ? "index.html" : main_location.getIndex());
     main_location.setReturn(main_location.getReturn().first == -1 ? std::pair<int, std::string>(-1, "") : main_location.getReturn());
     main_location.setRoot(main_location.getRoot() == "" ? "" : main_location.getRoot());

@@ -1,6 +1,45 @@
 #include "Utils.hpp"
 #include "ErrorResponse.hpp"
+#include "Location.hpp"
 #include <map>
+#include <iostream>
+#include <fstream>
+
+std::string ErrorResponse::getErrorResponse(int code, Location &loc)
+{
+    if (loc.getErrorPages().find(code) != loc.getErrorPages().end())
+    {
+        try {
+            std::string error_file_path = loc.getRoot() + loc.getErrorPages()[code];
+            std::ifstream file(error_file_path.c_str());
+            if (!file.is_open())
+                throw std::runtime_error("Error: could not open file: " + error_file_path);
+            std::string response((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+            file.close();
+            std::string contentType = "text/html";
+            std::map<std::string, std::string> headers;
+            headers["Content-Type"] = contentType;
+            headers["Content-Length"] = size_tToString(response.size());
+            headers["Connection"] = "close";
+            std::string responseStr = "HTTP/1.1 " + size_tToString(code) + " " + loc.getErrorPages()[code] + "\r\n";
+            for (std::map<std::string, std::string>::iterator it = headers.begin(); it != headers.end(); it++)
+            {
+                responseStr += it->first + ": " + it->second + "\r\n";
+            }
+            responseStr += "\r\n" + response;
+            return responseStr;
+        }
+        catch (const std::exception &e)
+        {
+            std::cerr << e.what() << std::endl;
+        }
+        return getErrorResponse(code);
+    }
+    else
+    {
+        return getErrorResponse(code);
+    }
+}
 
 std::string ErrorResponse::getErrorResponse(int code)
 {
