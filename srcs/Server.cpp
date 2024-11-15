@@ -188,7 +188,6 @@ void Server::processConnections(ConfigParser config)
 
         // Handle all sockets with activity
         for (int fd = 0; fd <= _maxFd; fd++) {
-            // delayMilliseconds(1.0); // Sleep for a millisecond to avoid busy waiting
             if (FD_ISSET(fd, &read_fds)) {
                 // Check if this is a listener socket
                 if (std::find(_listeners.begin(), _listeners.end(), fd) != _listeners.end()) {
@@ -296,6 +295,7 @@ void Server::processConnections(ConfigParser config)
                         
                         totalBytesWritten += bytesWritten;
                     }
+                    delayMilliseconds(1.0);
 
                     if (totalBytesWritten == static_cast<ssize_t>(response.size())) {
                         shutdown(fd, SHUT_WR); // Signals end of data transmission

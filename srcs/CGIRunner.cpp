@@ -96,7 +96,6 @@ SRet<std::string> CGIRunner::runCGI(const std::string &_path, const std::map<std
 
     // Ensure uploads directory exists
     std::string uploadsDir = _loc.getRoot() + "/tmp";
-    mkdir(uploadsDir.c_str(), 0755);
 
     std::vector<std::string> requestURIandScriptName = pathToRequestURIandScriptName(_path);
 
@@ -106,12 +105,6 @@ SRet<std::string> CGIRunner::runCGI(const std::string &_path, const std::map<std
     if (_headers.find("Content-Type") != _headers.end()) {
         contentType += _headers.find("Content-Type")->second;
     }
-
-    // Extract boundary if it exists
-    // size_t boundaryPos = contentType.find("boundary=");
-    // if (boundaryPos != std::string::npos) {
-    //     contentType += contentType.substr(boundaryPos + 9);
-    // }
 
     std::string _REQUEST_URI = "REQUEST_URI=" + requestURIandScriptName[0];
     std::string _SCRIPT_FILENAME = "SCRIPT_FILENAME=" + absPath;
@@ -191,6 +184,8 @@ SRet<std::string> CGIRunner::runCGI(const std::string &_path, const std::map<std
 
         int status;
         waitpid(pid, &status, 0);
+
+        std::cout << "CGI output: " << output << std::endl;
 
         if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
             bool hasHeaders = true;

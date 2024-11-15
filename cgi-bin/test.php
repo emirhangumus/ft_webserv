@@ -1,8 +1,8 @@
-<pre>
+#!/usr/bin/php
 <?php
+// Content-Type header for HTML output
+echo("Content-Type: text/html\r\n");
 
-print_r($_SERVER);
+echo("\r\n");
 
-?>
-
-</pre>
+echo "<h1>Hello, World!</h1>";
