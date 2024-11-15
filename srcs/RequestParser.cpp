@@ -1,7 +1,6 @@
 #include "Utils.hpp"
 #include "RequestParser.hpp"
 #include "ErrorResponse.hpp"
-#include "CacheManager.hpp"
 #include "CGIRunner.hpp"
 #include <stdlib.h>
 #include <iostream>
@@ -26,9 +25,6 @@ RequestParser::~RequestParser()
 
 SRet<bool> RequestParser::parseRequest(std::string request)
 {
-    // std::cout << "\033[1;32m" << "****************************************" << "\033[0m" << std::endl;
-    // std::cout << "\033[1;32m" << request << "\033[0m" << std::endl;
-
     size_t endOfRequestLine = request.find("\r\n");
     if (endOfRequestLine == std::string::npos)
         return SRet<bool>(EXIT_FAILURE, false, "Invalid request 1");
@@ -153,15 +149,10 @@ SRet<bool> RequestParser::parseHeaders(std::string headers)
 
 SRet<bool> RequestParser::parseBody(std::string body)
 {
-    // if (body.find('\0') != std::string::npos)
-    //     return SRet<bool>(EXIT_FAILURE, false, "Body contains invalid characters");
-
-    // print the body with blue color
-    // std::cout << "\033[1;34m" << body << "\033[0m" << std::endl;
-
     _body = body;
     return SRet<bool>(EXIT_SUCCESS, true);
 }
+
 std::string urlDecode(const std::string &str)
 {
     std::string decoded;
@@ -301,24 +292,8 @@ std::string removeLocationFromPath(std::string path, std::string location)
     return path;
 }
 
-SRet<std::string> RequestParser::prepareResponse(CacheManager &cache, MimeTypes &mimeTypes)
+SRet<std::string> RequestParser::prepareResponse(MimeTypes &mimeTypes)
 {
-
-    // std::map<std::string, std::string>::iterator cache_it = _headers.find("Pragma");
-    // std::string pragma = "";
-    // if (cache_it != _headers.end())
-    //     pragma = cache_it->second;
-    // cache_it = _headers.find("Cache-Control");
-    // std::string cacheControl = "";
-    // if (cache_it != _headers.end())
-    //     cacheControl = cache_it->second;
-    // if (pragma != "no-cache" && cacheControl != "no-cache")
-    // {
-    //     std::string response = cache.getCache(_uri);
-    //     if (response != "")
-    //         return SRet<std::string>(EXIT_SUCCESS, response);
-    // }
-
     std::map<std::string, std::string>::iterator it = _headers.find("Host");
     if (it == _headers.end()) // Is it should look like this??
         return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(400));
@@ -330,8 +305,6 @@ SRet<std::string> RequestParser::prepareResponse(CacheManager &cache, MimeTypes 
 
     Location loc = serverConfig.getCorrentLocation(_path);
 
-    std::cout << "_method: " << _method << std::endl;
-    // check the is allowed method. loc.getAllowMethods() is a vector of allowed methods std::vector<std::string> _allowMethods; Use for loop
     for (size_t i = 0; i < loc.getAllowMethods().size(); i++)
     {
         if (loc.getAllowMethods()[i] == _method)
@@ -347,7 +320,6 @@ SRet<std::string> RequestParser::prepareResponse(CacheManager &cache, MimeTypes 
     {
         std::pair<int, std::string> return_ = loc.getReturn();
         std::string response = "HTTP/1.1 " + size_tToString(return_.first) + " " + return_.second + "\r\nLocation: " + return_.second + "\r\n\r\n";
-        cache.addCache(_uri, response);
         return SRet<std::string>(EXIT_SUCCESS, response);
     }
 
@@ -359,9 +331,9 @@ SRet<std::string> RequestParser::prepareResponse(CacheManager &cache, MimeTypes 
      */
     bool isCGI = false;
     if (loc.getCgiParams().size() > 0 && _path.find_last_of(".") != std::string::npos) {
-        std::string requestFileExtension = _path.substr(_path.find_last_of("."));
-        std::map<std::string, std::string> cgiParams = loc.getCgiParams();
-        for (std::map<std::string, std::string>::iterator it = cgiParams.begin(); it != cgiParams.end(); it++)
+        std::string requestFileExtension = _path.substr(_path.find_last_of(".") + 1);
+        std::map<std::string, std::string> cgi_params = loc.getCgiParams();
+        for (std::map<std::string, std::string>::const_iterator it = cgi_params.begin(); it != cgi_params.end(); ++it)
         {
             if (requestFileExtension == it->first)
             {
@@ -407,7 +379,6 @@ SRet<std::string> RequestParser::prepareResponse(CacheManager &cache, MimeTypes 
                         std::string contentType = "text/html";
 
                         response = "HTTP/1.1 200 OK\r\nContent-Type: " + contentType + "\r\nContent-Length: " + size_tToString(response.size()) + "\r\n\r\n" + response;
-                        cache.addCache(_uri, response);
                         return SRet<std::string>(EXIT_SUCCESS, response);
                     }
                     else
@@ -429,7 +400,6 @@ SRet<std::string> RequestParser::prepareResponse(CacheManager &cache, MimeTypes 
 
                 response += "</pre><hr></body></html>";
                 response = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: " + size_tToString(response.size()) + "\r\n\r\n" + response;
-                cache.addCache(_uri, response);
                 return SRet<std::string>(EXIT_SUCCESS, response);
             }
         }
@@ -441,8 +411,6 @@ SRet<std::string> RequestParser::prepareResponse(CacheManager &cache, MimeTypes 
             std::string _subpath = removeLocationFromPath(_path, loc.getPath());
 
             std::string path = root + _subpath;
-
-            std::cout << "\033[1;32m" << path << "\033[0m" << std::endl;
 
             bool found = false;
             struct stat buffer;
@@ -472,7 +440,6 @@ SRet<std::string> RequestParser::prepareResponse(CacheManager &cache, MimeTypes 
             std::string fileContent = oss.str();
             file.close();
 
-            // std::cout << "\033[1;32m" << "fileContent: " << fileContent.size() << "\033[0m" << std::endl;
             /**
              * TODO:
              * 1. Check if the file is an image, video, etc. and set the content type accordingly
@@ -480,14 +447,11 @@ SRet<std::string> RequestParser::prepareResponse(CacheManager &cache, MimeTypes 
             std::string extension = path.substr(path.find_last_of(".") + 1);
             std::string contentType = mimeTypes.getMimeType("."+extension);
 
-            // std::cout << "\033[1;32m" << "Content Type: " << contentType << "\033[0m" << "Extension: " << extension << std::endl;
-
             // std::string responseLine = found ? "200 OK" : "404 Not Found";
             std::string responseLine = "200 OK";
             (void)found;
 
             std::string response = "HTTP/1.1 "+responseLine+"\r\nContent-Type: " + contentType + "\r\nContent-Length: " + size_tToString(fileContent.size()) + "\r\n\r\n" + fileContent;
-            cache.addCache(_uri, response);
             return SRet<std::string>(EXIT_SUCCESS, response);
         }
     }

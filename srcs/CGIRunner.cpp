@@ -100,14 +100,10 @@ SRet<std::string> CGIRunner::runCGI(const std::string &_path, const std::map<std
 
     std::vector<std::string> requestURIandScriptName = pathToRequestURIandScriptName(_path);
 
-    // PRİNT BODY WİTH PURPLE
-    // std::cout << "\033[1;35m" << "BODY: " << _body << "\033[0m" << std::endl;
-
     // Prepare environment variables
     std::string contentLength = "CONTENT_LENGTH=" + size_tToString(_body.length());
     std::string contentType = "CONTENT_TYPE=";
     if (_headers.find("Content-Type") != _headers.end()) {
-        // std::cout << "FOUND HEADER IS: " << _headers.find("Content-Type")->second << std::endl;
         contentType += _headers.find("Content-Type")->second;
     }
 
@@ -147,11 +143,6 @@ SRet<std::string> CGIRunner::runCGI(const std::string &_path, const std::map<std
         const_cast<char *>(_PATH_INFO.c_str()),
         NULL
     };
-
-    // print all env's
-    // for (int i = 0; envp[i] != NULL; i++) {
-    //     std::cout << envp[i] << std::endl;
-    // }
 
     int pipefd[2];
     int bodyPipe[2];

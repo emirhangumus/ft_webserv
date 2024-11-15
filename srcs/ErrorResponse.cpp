@@ -22,7 +22,6 @@ std::string ErrorResponse::getErrorResponse(int code, Location &loc)
             headers["Content-Length"] = size_tToString(response.size());
             headers["Connection"] = "close";
             std::string responseStr = "HTTP/1.1 " + getTitleAndBody(code).first + "\r\n";
-            std::cout << "RESPONSE STR: " << responseStr << std::endl;
             for (std::map<std::string, std::string>::iterator it = headers.begin(); it != headers.end(); it++)
             {
                 responseStr += it->first + ": " + it->second + "\r\n";

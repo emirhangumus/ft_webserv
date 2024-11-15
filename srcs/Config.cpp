@@ -9,7 +9,6 @@ Config::Config()
 
 void Config::fillConfig(std::string listen, std::vector<std::string> server_names, Location main_location, std::map<std::string, Location, LocationComparator> locations)
 {
-    // std::cout << "Constructor called" << std::endl;
     this->server_names = server_names;
     this->locations = locations;
     this->main_location = main_location;
@@ -66,24 +65,7 @@ void Config::fillConfig(std::string listen, std::vector<std::string> server_name
 
 Config::~Config()
 {
-    // std::cout << "Destructor called" << std::endl;
 }
-
-// bool locationMatch(const std::string& requestPath, const std::string& locationPath) {
-
-//     std::cout << "requestPath: " << requestPath << std::endl;
-//     std::cout << "locationPath: " << locationPath << std::endl;
-
-//     if (locationPath.empty()) {
-//         return false;
-//     }
-
-//     // if (locationPath[locationPath.size() - 1] == '/') {
-//     //     return requestPath.compare(0, locationPath.size(), locationPath) == 0;
-//     // }
-
-//     return requestPath.compare(0, locationPath.size(), locationPath) == 0 || requestPath == locationPath;
-// }
 
 enum LocationType {
     EXACT,

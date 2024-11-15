@@ -99,7 +99,6 @@ password = form.getvalue('password')
 if action == 'register':
     message = register(username, password)
     if message == "Registration successful.":
-        user_data = session_db[session_id]
         print("Location: /cgi-bin/form.py", end="")
 elif action == 'login':
     message = login(username, password)

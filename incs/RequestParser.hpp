@@ -3,7 +3,6 @@
 
 #include "Utils.hpp"
 #include "ConfigParser.hpp"
-#include "CacheManager.hpp"
 #include "MimeTypes.hpp"
 #include <string>
 #include <iostream>
@@ -16,7 +15,7 @@ public:
     RequestParser(ConfigParser config);
     ~RequestParser();
     SRet<bool> parseRequest(std::string request);
-    SRet<std::string> prepareResponse(CacheManager& cache, MimeTypes& mimeTypes);
+    SRet<std::string> prepareResponse(MimeTypes& mimeTypes);
 
     std::string getMethod() { return _method; }
     std::string getUri() { return _uri; }

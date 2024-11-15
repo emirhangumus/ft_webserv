@@ -2,7 +2,6 @@
 #define SERVER_HPP
 
 #include "ConfigParser.hpp"
-#include "CacheManager.hpp"
 #include "MimeTypes.hpp"
 #include <iostream>
 #include <cstdlib>
@@ -29,7 +28,6 @@ public:
 private:
     std::vector<struct sockaddr_in> allSockets;
     std::vector<int> fds;
-    CacheManager cacheManager;
     int _maxFd;
     std::vector<int> _listeners;
     std::map<int, std::string> _clientData;

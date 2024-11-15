@@ -27,16 +27,10 @@ ConfigParser::ConfigParser()
 
 ConfigParser::~ConfigParser()
 {
-    // std::cout << "Destructor called" << std::endl;
 }
 
 Config ConfigParser::get(const std::string &key) const
 {
-    // print all map keys
-    // for (std::map<std::string, Config>::const_iterator it = m_config.begin(); it != m_config.end(); it++)
-    //     std::cout << it->first << std::endl;
-
-    // check if key exists
     std::map<std::string, Config>::const_iterator it = m_config.find(key);
     if (it == m_config.end())
         return Config();
@@ -311,8 +305,6 @@ Config ConfigParser::getServerConfig(const std::string &host) const
 {
     for (std::map<std::string, Config>::const_iterator it = m_config.begin(); it != m_config.end(); it++)
     {
-        std::cout << "Checking host: " << it->first << std::endl;
-        std::cout << "Checking host: " << host << std::endl;
         if (it->first == host)
             return it->second;
     }

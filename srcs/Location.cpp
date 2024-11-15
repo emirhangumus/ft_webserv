@@ -8,8 +8,6 @@
 
 Location::Location()
 {
-    // std::cout << "Location Constructor called" << std::endl;
-
     this->path = "";
     this->root = "";
     this->index = "";
@@ -23,7 +21,6 @@ Location::Location()
 
 Location::~Location()
 {
-    // std::cout << "Location Destructor called" << std::endl;
 }
 
 void Location::setPath(const std::string &path)

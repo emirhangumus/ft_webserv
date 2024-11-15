@@ -1,4 +1,6 @@
 #include "Server.hpp"
+#include "RequestParser.hpp"
+#include "ErrorResponse.hpp"
 #include "MimeTypes.hpp"
 #include <iostream>
 #include <cstdlib>
@@ -15,20 +17,18 @@
 #include <poll.h>
 #include <cerrno>
 #include <cstring>
-#include "RequestParser.hpp"
-#include "ErrorResponse.hpp"
-#include "CacheManager.hpp"
 
 Server::Server()
 {
-	this->cacheManager = CacheManager();
 	this->mimeTypes = MimeTypes();
 	this->_maxFd = 0;
 }
 
 Server::~Server()
 {
-	this->cacheManager.clearCache();
+    for (std::vector<int>::iterator it = _listeners.begin(); it != _listeners.end(); it++) {
+        close(*it);
+    }
 }
 
 int Server::setNonBlock(int sockfd) {
@@ -206,7 +206,6 @@ void Server::processConnections(ConfigParser config)
                             _maxFd = newfd;
                         }
                         _clientData[newfd] = "";  // Initialize client data
-                        std::cout << "New connection on socket " << newfd << std::endl;
                     }
                 } else {
                     // Handle data from a client
@@ -219,15 +218,8 @@ void Server::processConnections(ConfigParser config)
                         }
                         closeConnection(fd, &master_readfds, &master_writefds);
                     } else {
-                        // Append data to the client's buffer
                         _clientData[fd].append(buf, nbytes);
-                        std::cout << "Received " << nbytes << " bytes from client " << fd << std::endl;
-                        
-                        std::cout << std::endl;
-                        std::cout << "Client data: " << _clientData[fd] << std::endl;
 
-                        // Check if we have a complete HTTP request (ending with \r\n\r\n)
-                        // Emirhan: Is it the best way to check if the request is complete?
                         if (_clientData[fd].find("\r\n\r\n") != std::string::npos) {
                             RequestParser rp = RequestParser(config);
                             rp.parseRequest(_clientData[fd]);
@@ -269,22 +261,16 @@ void Server::processConnections(ConfigParser config)
                 if (!_clientData[fd].empty()) {
                     std::string response;
                     RequestParser rp = RequestParser(config);
-                    std::cout << _clientData[fd] << std::endl;
                     SRet<bool> ret = rp.parseRequest(_clientData[fd]);
-                    // DEBUG WİTH RED COLOR
 
                     if (ret.status == EXIT_FAILURE) {
                         std::cout << "Error parsing request: " << ret.err << std::endl;
                         response = ErrorResponse::getErrorResponse(400);
                     } else {
-                        SRet<std::string> realResponse = rp.prepareResponse(cacheManager, mimeTypes);
+                        SRet<std::string> realResponse = rp.prepareResponse(mimeTypes);
                         response = (realResponse.status == EXIT_FAILURE) ? realResponse.err : realResponse.data;
-
-                        // std::cout << "Response: " << response << std::endl;
                     }
-                    // write DEBUG with color red
-                    // Handle writing to client
-                    std::cout << "Response: " << response << std::endl;
+
                     const ssize_t CHUNK_SIZE = 8192;  // 8KB chunks
                     ssize_t totalBytesWritten = 0;
                     const ssize_t totalBytes = response.size();
@@ -310,26 +296,7 @@ void Server::processConnections(ConfigParser config)
                         
                         totalBytesWritten += bytesWritten;
                     }
-                    // ssize_t bytesWritten = send(fd, response.c_str(), response.size(), 0);
-                    // delayMilliseconds(1.0); // Sleep for a millisecond to avoid busy waiting
-                    // if (totalBytesWritten <= 0) {
-                    //     std::cerr << "Send error: " << strerror(errno) << std::endl;
-                    //     closeConnection(fd, &master_readfds, &master_writefds);
-                    // } else {
-                    //     std::cout << "Response sent to client " << fd << std::endl;
-                    // }
-                    // TODO:
-                    // - Check if the response is fully sent
-                    // - Remove the client from the write set if the response is fully sent
-                    // - Close the connection if the response is fully sent
-                    // - Handle partial writes
-                    // - Handle errors
-                    // - Handle keep-alive connections
-                    // - Handle chunked encoding
-                    //
-                    // We can use `timeout` system call to set a timeout for the connection
-                    std::cout << "Bytes written: " << totalBytesWritten << std::endl;
-                    std::cout << "Response size: " << response.size() << std::endl;
+
                     if (totalBytesWritten == static_cast<ssize_t>(response.size())) {
                         shutdown(fd, SHUT_WR); // Signals end of data transmission
                         closeConnection(fd, &master_readfds, &master_writefds);
