@@ -223,6 +223,9 @@ void Server::processConnections(ConfigParser config)
                         _clientData[fd].append(buf, nbytes);
                         std::cout << "Received " << nbytes << " bytes from client " << fd << std::endl;
                         
+                        std::cout << std::endl;
+                        std::cout << "Client data: " << _clientData[fd] << std::endl;
+
                         // Check if we have a complete HTTP request (ending with \r\n\r\n)
                         // Emirhan: Is it the best way to check if the request is complete?
                         if (_clientData[fd].find("\r\n\r\n") != std::string::npos) {
@@ -255,7 +258,7 @@ void Server::processConnections(ConfigParser config)
                                 FD_SET(fd, &master_writefds);  // Mark for writing
                             }
                             catch (const std::out_of_range& oor) {
-                                std::cout << "Content-Length header not found" << std::endl;
+                                FD_SET(fd, &master_writefds);  // Mark for writing
                             }
                         }
                     }
@@ -266,6 +269,7 @@ void Server::processConnections(ConfigParser config)
                 if (!_clientData[fd].empty()) {
                     std::string response;
                     RequestParser rp = RequestParser(config);
+                    std::cout << _clientData[fd] << std::endl;
                     SRet<bool> ret = rp.parseRequest(_clientData[fd]);
                     // DEBUG WİTH RED COLOR
 
@@ -280,15 +284,40 @@ void Server::processConnections(ConfigParser config)
                     }
                     // write DEBUG with color red
                     // Handle writing to client
-                    // std::cout << "Response: " << response << std::endl;
-                    ssize_t bytesWritten = send(fd, response.c_str(), response.size(), 0);
-                    delayMilliseconds(1.0); // Sleep for a millisecond to avoid busy waiting
-                    if (bytesWritten <= 0) {
-                        std::cerr << "Send error: " << strerror(errno) << std::endl;
-                        closeConnection(fd, &master_readfds, &master_writefds);
-                    } else {
-                        std::cout << "Response sent to client " << fd << std::endl;
+                    std::cout << "Response: " << response << std::endl;
+                    const ssize_t CHUNK_SIZE = 8192;  // 8KB chunks
+                    ssize_t totalBytesWritten = 0;
+                    const ssize_t totalBytes = response.size();
+
+                    while (totalBytesWritten < totalBytes) {
+                        const ssize_t bytesToWrite = std::min(CHUNK_SIZE, totalBytes - totalBytesWritten);
+                        const ssize_t bytesWritten = send(fd, response.data() + totalBytesWritten, bytesToWrite, 0);
+                        
+                        if (bytesWritten < 0) {
+                            if (errno == EINTR) {  // Handle interrupt
+                                continue;
+                            }
+                            std::cerr << "Send error: " << strerror(errno) << std::endl;
+                            closeConnection(fd, &master_readfds, &master_writefds);
+                            break;
+                        }
+                        
+                        if (bytesWritten == 0) {  // Connection closed
+                            std::cerr << "Connection closed by peer" << std::endl;
+                            closeConnection(fd, &master_readfds, &master_writefds);
+                            break;
+                        }
+                        
+                        totalBytesWritten += bytesWritten;
                     }
+                    // ssize_t bytesWritten = send(fd, response.c_str(), response.size(), 0);
+                    // delayMilliseconds(1.0); // Sleep for a millisecond to avoid busy waiting
+                    // if (totalBytesWritten <= 0) {
+                    //     std::cerr << "Send error: " << strerror(errno) << std::endl;
+                    //     closeConnection(fd, &master_readfds, &master_writefds);
+                    // } else {
+                    //     std::cout << "Response sent to client " << fd << std::endl;
+                    // }
                     // TODO:
                     // - Check if the response is fully sent
                     // - Remove the client from the write set if the response is fully sent
@@ -299,9 +328,10 @@ void Server::processConnections(ConfigParser config)
                     // - Handle chunked encoding
                     //
                     // We can use `timeout` system call to set a timeout for the connection
-                    std::cout << "Bytes written: " << bytesWritten << std::endl;
+                    std::cout << "Bytes written: " << totalBytesWritten << std::endl;
                     std::cout << "Response size: " << response.size() << std::endl;
-                    if ((size_t)bytesWritten == response.size()) {
+                    if (totalBytesWritten == static_cast<ssize_t>(response.size())) {
+                        shutdown(fd, SHUT_WR); // Signals end of data transmission
                         closeConnection(fd, &master_readfds, &master_writefds);
                     }
                 }
@@ -318,110 +348,3 @@ void Server::closeConnection(int fd, fd_set* master_readfds, fd_set* master_writ
     FD_CLR(fd, master_readfds);
     FD_CLR(fd, master_writefds);
 }
-
-// bool Server::acceptNewConnectionsIfAvailable(std::vector<pollfd> &pollfds, int i, ConfigParser config) {
-// 	struct pollfd tmp;
-// 	struct sockaddr_in clientSocket;
-// 	socklen_t socketSize = sizeof(clientSocket);
-
-// 	int _fd;
-// 	_fd = accept(pollfds[i].fd, (struct sockaddr *)&clientSocket, &socketSize);
-// 	if (_fd == -1) return false;
-// 	tmp.fd = _fd; // set the newly obtained file descriptor to the pollfd. Important to do this before the fcntl call!
-// 	int val = fcntl(_fd, F_SETFL, fcntl(_fd, F_GETFL, 0) | O_NONBLOCK);
-// 	if (val == -1) { // fcntl failed, we now need to close the socket
-// 		close(_fd);
-// 		return false;
-// 	};
-	
-// 	// set the pollfd to listen for POLLIN events (read events)
-// 	tmp.events = POLLIN;
-// 	tmp.revents = 0;
-// 	pollfds.push_back(tmp); //add the new fd/socket to the set, considered as "client"
-
-
-// 	int BUFFER_SIZE_READ = 1024;
-// 	// read the from the client
-// 	char buffer[1024]; // 20MB
-// 	std::fill(buffer, buffer + BUFFER_SIZE_READ, 0);
-// 	std::string request;
-
-// 	int is_error = 0;
-// 	while (1) {
-// 		// usleep(10); // sleep for a second
-// 		int bytes = read(_fd, buffer, BUFFER_SIZE_READ);
-// 		if (bytes == -1) {
-// 			std::cout << "Error reading from client: " << strerror(errno) << std::endl;
-// 			is_error = 1;
-// 			break;
-// 		}
-// 		if (bytes == 0) {
-// 			std::cout << "Client closed connection" << std::endl;
-// 			break;
-// 		}
-// 		std::cout << "Read " << bytes << " bytes from client" << std::endl;
-// 		// std::cout << "Data: " << buffer << std::endl;
-
-// 		// check if the buffer is empty
-// 		if (bytes == 0) {
-// 			break;
-// 		}
-
-// 		request.append(buffer, bytes);
-// 		if (bytes < BUFFER_SIZE_READ) {
-// 			break;
-// 		}
-// 		std::fill(buffer, buffer + BUFFER_SIZE_READ, 0);
-// 	}
-
-// 	std::string response;
-// 	if (!is_error) {
-// 		RequestParser rp = RequestParser(config);
-// 		SRet<bool> ret = rp.parseRequest(request);
-// 		if (ret.status == EXIT_FAILURE) {
-// 			std::cout << "Error parsing request: " << ret.err << std::endl;
-// 			response = ErrorResponse::getErrorResponse(400);
-// 		}
-// 		else {
-// 			SRet<std::string> realResponse = rp.prepareResponse(cacheManager);
-// 			if (realResponse.status == EXIT_FAILURE) {
-// 				response = realResponse.err;
-// 				// std::cout << "Error preparing response: " << response << std::endl;
-// 			}
-// 			else {
-// 				response = realResponse.data;
-// 			}
-// 		}
-// 	} else {
-// 		std::string response = ErrorResponse::getErrorResponse(500);
-// 	}
-
-// 	// cache the response
-// 	cacheManager.addCache(request, response);
-
-	
-// 	// write to the client
-// 	// std::string response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 12\r\n\r\nHello World!";
-	
-// 	// create a redirect response
-// 	// std::string response = "HTTP/1.1 301 Moved Permanently\r\nLocation: https://www.google.com\r\n\r\n";
-
-// 	// create response with cors.
-// 	// - Access-Control-Allow-Origin
-// 	// - AMethodccess-Control-Allow-s
-// 	// - Access-Control-Allow-Headers
-
-// 	int bytesWritten = write(_fd, response.c_str(), response.size());
-// 	if (bytesWritten == -1) {
-// 		std::cout << "Error writing to client: " << strerror(errno) << std::endl;
-// 	}
-// 	else {
-// 		std::cout << "Wrote " << bytesWritten << " bytes to client" << std::endl;
-// 	}
-// 	// close the connection
-// 	close(_fd);
-// 	// remove the pollfd from the list
-// 	pollfds.pop_back();
-
-// 	return true;
-// }

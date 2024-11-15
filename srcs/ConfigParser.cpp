@@ -235,7 +235,8 @@ SRet<std::map<std::string, Config> > ConfigParser::parseConfigFile(const std::st
                         return SRet<std::map<std::string, Config> >(EXIT_FAILURE, config, "Error: invalid config file: client_max_body_size directive must have a valid size string");
                     main_location.setClientMaxBodySize(convertSizeToBytes(value));
                 } else if (directive == "allow_methods") {
-                    main_location.setAllowMethods(split(value, ' '));
+                    std::vector<std::string> allow_methods = split(value, ' ');
+                    main_location.setAllowMethods(allow_methods);
                 } else if (directive == "cgi_params") {
                     std::map<std::string, std::string> params = parseCgiParams(value);
                     main_location.setCgiParams(params);
@@ -270,7 +271,8 @@ SRet<std::map<std::string, Config> > ConfigParser::parseConfigFile(const std::st
                         return SRet<std::map<std::string, Config> >(EXIT_FAILURE, config, "Error: invalid config file: client_max_body_size directive must have a valid size string");
                     locations[current_location_key].setClientMaxBodySize(convertSizeToBytes(value));
                 } else if (directive == "allow_methods") {
-                    locations[current_location_key].setAllowMethods(split(value, ' '));
+                    std::vector<std::string> allow_methods = split(value, ' ');
+                    locations[current_location_key].setAllowMethods(allow_methods);
                 } else if (directive == "cgi_params") {
                     std::map<std::string, std::string> params = parseCgiParams(value);
                     locations[current_location_key].setCgiParams(params);

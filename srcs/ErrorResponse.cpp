@@ -7,7 +7,7 @@
 
 std::string ErrorResponse::getErrorResponse(int code, Location &loc)
 {
-    if (loc.getErrorPages().find(code) != loc.getErrorPages().end())
+    if (loc.getErrorPages().size() > 0 && loc.getErrorPages().find(code) != loc.getErrorPages().end())
     {
         try {
             std::string error_file_path = loc.getRoot() + loc.getErrorPages()[code];
@@ -21,7 +21,8 @@ std::string ErrorResponse::getErrorResponse(int code, Location &loc)
             headers["Content-Type"] = contentType;
             headers["Content-Length"] = size_tToString(response.size());
             headers["Connection"] = "close";
-            std::string responseStr = "HTTP/1.1 " + size_tToString(code) + " " + loc.getErrorPages()[code] + "\r\n";
+            std::string responseStr = "HTTP/1.1 " + getTitleAndBody(code).first + "\r\n";
+            std::cout << "RESPONSE STR: " << responseStr << std::endl;
             for (std::map<std::string, std::string>::iterator it = headers.begin(); it != headers.end(); it++)
             {
                 responseStr += it->first + ": " + it->second + "\r\n";
@@ -43,10 +44,28 @@ std::string ErrorResponse::getErrorResponse(int code, Location &loc)
 
 std::string ErrorResponse::getErrorResponse(int code)
 {
-    std::string title = "500 Internal Server Error";
-    std::string body = "The server encountered an unexpected condition that prevented it from fulfilling the request.";
+    std::pair<std::string, std::string> titleAndBody = getTitleAndBody(code);
     std::map<std::string, std::string> headers;
+    std::string title = titleAndBody.first;
+    std::string body = titleAndBody.second;
+    std::string totalBody = "<html>\r\n<head><title>" + title + "</title></head>\r\n<body>\r\n<h1>" + title + "</h1>\r\n<p>" + body + "</p>\r\n</body>\r\n</html>";
+    headers["Content-Type"] = "text/html";
+    headers["Content-Length"] = size_tToString(totalBody.size());
+    headers["Connection"] = "close";
+    std::string response = "HTTP/1.1 " + title + "\r\n";
+    for (std::map<std::string, std::string>::iterator it = headers.begin(); it != headers.end(); it++)
+    {
+        response += it->first + ": " + it->second + "\r\n";
+    }
+    response += "\r\n" + totalBody;
 
+    return response;
+}
+
+std::pair<std::string, std::string> ErrorResponse::getTitleAndBody(int code)
+{
+    std::string title;
+    std::string body;
     if (code >= 400 && code <= 599)
     {
         switch (code)
@@ -217,16 +236,5 @@ std::string ErrorResponse::getErrorResponse(int code)
             break;
         }
     }
-    std::string totalBody = "<html>\r\n<head><title>" + title + "</title></head>\r\n<body>\r\n<h1>" + title + "</h1>\r\n<p>" + body + "</p>\r\n</body>\r\n</html>";
-    headers["Content-Type"] = "text/html";
-    headers["Content-Length"] = size_tToString(totalBody.size());
-    headers["Connection"] = "close";
-    std::string response = "HTTP/1.1 " + title + "\r\n";
-    for (std::map<std::string, std::string>::iterator it = headers.begin(); it != headers.end(); it++)
-    {
-        response += it->first + ": " + it->second + "\r\n";
-    }
-    response += "\r\n" + totalBody;
-
-    return response;
+    return std::make_pair(title, body);
 }

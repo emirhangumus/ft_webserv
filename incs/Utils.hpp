@@ -27,5 +27,6 @@ std::string size_tToString(size_t value);
 long long convertSizeToBytes(const std::string& sizeStr);
 int stringtoi(const std::string &str);
 bool isValidConvertableSizeString(const std::string& str);
+bool isMethod(const std::string &method);
 
 #endif

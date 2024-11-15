@@ -60,6 +60,11 @@ SRet<bool> RequestParser::parseRequestLine(std::string requestLine)
     ALLOWED_METHODS.push_back("GET");
     ALLOWED_METHODS.push_back("POST");
     ALLOWED_METHODS.push_back("DELETE");
+    ALLOWED_METHODS.push_back("PUT");
+    ALLOWED_METHODS.push_back("HEAD");
+    ALLOWED_METHODS.push_back("CONNECT");
+    ALLOWED_METHODS.push_back("OPTIONS");
+    ALLOWED_METHODS.push_back("TRACE");
 
     if (requestLine.find('\0') != std::string::npos || requestLine.find_first_of("\r\n") != std::string::npos)
         return SRet<bool>(EXIT_FAILURE, false, "Invalid characters in request line");
@@ -299,20 +304,20 @@ std::string removeLocationFromPath(std::string path, std::string location)
 SRet<std::string> RequestParser::prepareResponse(CacheManager &cache, MimeTypes &mimeTypes)
 {
 
-    std::map<std::string, std::string>::iterator cache_it = _headers.find("Pragma");
-    std::string pragma = "";
-    if (cache_it != _headers.end())
-        pragma = cache_it->second;
-    cache_it = _headers.find("Cache-Control");
-    std::string cacheControl = "";
-    if (cache_it != _headers.end())
-        cacheControl = cache_it->second;
-    if (pragma != "no-cache" && cacheControl != "no-cache")
-    {
-        std::string response = cache.getCache(_uri);
-        if (response != "")
-            return SRet<std::string>(EXIT_SUCCESS, response);
-    }
+    // std::map<std::string, std::string>::iterator cache_it = _headers.find("Pragma");
+    // std::string pragma = "";
+    // if (cache_it != _headers.end())
+    //     pragma = cache_it->second;
+    // cache_it = _headers.find("Cache-Control");
+    // std::string cacheControl = "";
+    // if (cache_it != _headers.end())
+    //     cacheControl = cache_it->second;
+    // if (pragma != "no-cache" && cacheControl != "no-cache")
+    // {
+    //     std::string response = cache.getCache(_uri);
+    //     if (response != "")
+    //         return SRet<std::string>(EXIT_SUCCESS, response);
+    // }
 
     std::map<std::string, std::string>::iterator it = _headers.find("Host");
     if (it == _headers.end()) // Is it should look like this??
@@ -325,8 +330,15 @@ SRet<std::string> RequestParser::prepareResponse(CacheManager &cache, MimeTypes 
 
     Location loc = serverConfig.getCorrentLocation(_path);
 
-    if (std::find(loc.getAllowMethods().begin(), loc.getAllowMethods().end(), _method) == loc.getAllowMethods().end())
-        return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(405, loc));
+    std::cout << "_method: " << _method << std::endl;
+    // check the is allowed method. loc.getAllowMethods() is a vector of allowed methods std::vector<std::string> _allowMethods; Use for loop
+    for (size_t i = 0; i < loc.getAllowMethods().size(); i++)
+    {
+        if (loc.getAllowMethods()[i] == _method)
+            break;
+        if (i == loc.getAllowMethods().size() - 1)
+            return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(405, loc));
+    }
 
     if (loc.getClientMaxBodySize() != -1 && _body.size() > static_cast<size_t>(loc.getClientMaxBodySize()))
         return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(413, loc));
@@ -339,7 +351,27 @@ SRet<std::string> RequestParser::prepareResponse(CacheManager &cache, MimeTypes 
         return SRet<std::string>(EXIT_SUCCESS, response);
     }
 
-    if (loc.getCgiParams().size() != 0)
+
+    /**
+     * this is the part where we check if the request is a CGI request
+     * if it is, we run the CGI script and return the response
+     * if it is not, we continue with the normal flow
+     */
+    bool isCGI = false;
+    if (loc.getCgiParams().size() > 0 && _path.find_last_of(".") != std::string::npos) {
+        std::string requestFileExtension = _path.substr(_path.find_last_of("."));
+        std::map<std::string, std::string> cgiParams = loc.getCgiParams();
+        for (std::map<std::string, std::string>::iterator it = cgiParams.begin(); it != cgiParams.end(); it++)
+        {
+            if (requestFileExtension == it->first)
+            {
+                isCGI = true;
+                break;
+            }
+        }
+    }
+
+    if (isCGI)
     {
         CGIRunner cgiRunner = CGIRunner(loc);
         return cgiRunner.runCGI(_path, _params, _method, _cookies, _body, _headers);

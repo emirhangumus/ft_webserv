@@ -173,3 +173,24 @@ bool isValidConvertableSizeString(const std::string& str)
 
     return false;
 }
+
+bool isMethod(const std::string &method)
+{
+    std::vector<std::string> methods;
+    methods.push_back("GET");
+    methods.push_back("POST");
+    methods.push_back("DELETE");
+    methods.push_back("PUT");
+    methods.push_back("HEAD");
+    methods.push_back("CONNECT");
+    methods.push_back("OPTIONS");
+    methods.push_back("TRACE");
+
+    for (size_t i = 0; i < methods.size(); i++)
+    {
+        if (methods[i] == method)
+            return true;
+    }
+
+    return false;
+}

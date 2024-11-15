@@ -57,7 +57,7 @@ std::string cookieMapToString(const std::map<std::string, std::string> &cookies)
     std::string result;
     for (std::map<std::string, std::string>::const_iterator it = cookies.begin(); it != cookies.end(); ++it)
     {
-        result += it->first + "=" + it->second + ";";
+        result += it->first + "=" + it->second + "; ";
     }
     if (!result.empty())
         result.erase(result.size() - 1);
@@ -91,7 +91,7 @@ SRet<std::string> CGIRunner::runCGI(const std::string &_path, const std::map<std
     std::string file = _loc.getRoot() + "/" + extractFileName(_path);
     std::string absPath = get_absolute_path(file);
     if (absPath.empty()) {
-        return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(404));
+        return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(404, _loc));
     }
 
     // Ensure uploads directory exists
@@ -156,12 +156,12 @@ SRet<std::string> CGIRunner::runCGI(const std::string &_path, const std::map<std
     int pipefd[2];
     int bodyPipe[2];
     if (pipe(pipefd) == -1 || pipe(bodyPipe) == -1) {
-        return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(500));
+        return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(500, _loc));
     }
 
     pid_t pid = fork();
     if (pid == -1) {
-        return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(500));
+        return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(500, _loc));
     }
 
     if (pid == 0) {  // Child process
@@ -202,19 +202,41 @@ SRet<std::string> CGIRunner::runCGI(const std::string &_path, const std::map<std
         waitpid(pid, &status, 0);
 
         if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
-            std::string headers;
-            if (output.find("Content-Type:") == std::string::npos) {
-                headers += "Content-Type: text/html\r\n";
+            bool hasHeaders = true;
+            // check output has `\r\n\r\n` or not
+            if (output.find("\r\n\r\n") == std::string::npos) { 
+                hasHeaders = false;
             }
-            if (output.find("Content-Length:") == std::string::npos) {
-                headers += "Content-Length: " + size_tToString(output.size()) + "\r\n";
+
+            std::string headers = "";
+            if (!hasHeaders) {
+                // Check if the CGI script has already set the Content-Type and Content-Length headers
+                if (output.find("Content-Type:") == std::string::npos) {
+                    headers += "Content-Type: text/html\r\n";
+                }
+                if (output.find("Content-Length:") == std::string::npos) {
+                    headers += "Content-Length: " + size_tToString(output.size()) + "\r\n";
+                }
+                headers += "\r\n";
+            } else {
+                size_t pos = output.find("\r\n\r\n");
+                headers = output.substr(0, pos);
+                output = output.substr(pos + 4);
+
+                headers += "\r\n";
+
+                // Check if the CGI script has already set the Content-Length header
+                if (headers.find("Content-Length:") == std::string::npos) {
+                    headers += "Content-Length: " + size_tToString(output.size()) + "\r\n";
+                }
             }
             headers = "HTTP/1.1 200 OK\r\n" + headers;
+            output = headers + "\r\n" + output;
 
-            return SRet<std::string>(0, headers + "\r\n" + output); 
+            return SRet<std::string>(0, output); 
         }
-        return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(500));
+        return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(500, _loc));
     }
 
-    return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(500));
+    return SRet<std::string>(EXIT_FAILURE, "", ErrorResponse::getErrorResponse(500, _loc));
 }

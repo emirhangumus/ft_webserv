@@ -53,6 +53,12 @@ void Location::setClientMaxBodySize(long long client_max_body_size)
 
 void Location::setAllowMethods(const std::vector<std::string> allow_methods)
 {
+    for (std::vector<std::string>::const_iterator it = allow_methods.begin(); it != allow_methods.end(); ++it)
+    {
+        if (!isMethod(*it))
+            throw std::runtime_error("Error: invalid config file: allow_methods directive must have valid methods");
+    }
+    
     this->allow_methods = allow_methods;
 }
 

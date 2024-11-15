@@ -89,6 +89,8 @@ else:
 # Retrieve session data
 user_data = session_db.get(session_id, {})
 
+print("Content-Type: text/html", end='\r\n')
+
 # Handle form data for registration and login
 action = form.getvalue('action')
 username = form.getvalue('username')
@@ -96,12 +98,24 @@ password = form.getvalue('password')
 
 if action == 'register':
     message = register(username, password)
+    if message == "Registration successful.":
+        user_data = session_db[session_id]
+        print("Location: /cgi-bin/form.py", end="")
 elif action == 'login':
     message = login(username, password)
+    if message == "Login successful.":
+        user_data = session_db[session_id]
+        print("Location: /cgi-bin/form.py", end="")
 elif action == 'signout':
     message = signout()
+    if message == "Sign out successful.":
+        user_data = {}
+        print("Location: /cgi-bin/form.py", end="")
 else:
     message = ""
+
+
+print("\r\n\r\n", end='')
 
 # Display user information or login/register form
 if 'username' in user_data:
@@ -122,3 +136,40 @@ else:
     </form>
     """)
 print(f"<p>{message}</p>")
+
+# INLINE CSS
+print("""
+<style>
+    form {
+        margin: 0 auto;
+        width: 200px;
+    }
+    input, button {
+        margin: 5px 0;
+        width: 100%;
+        padding: 10px;
+        box-sizing: border-box;
+    }
+    
+    button {
+        background-color: #4CAF50;
+        color: white;
+        padding: 14px 20px;
+        margin: 8px 0;
+        border: none;
+        cursor: pointer;
+        width: 100%;
+    }
+      
+    p {
+        text-align: center;
+    }
+      
+    button:hover {
+        opacity: 0.8;
+    }
+    h1 {
+        text-align: center;
+    }
+</style>
+""")
